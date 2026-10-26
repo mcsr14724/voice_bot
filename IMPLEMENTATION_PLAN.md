@@ -5,21 +5,22 @@ Work incrementally and keep this plan aligned with the code.
 | Phase | Scope | Status |
 |---|---|---|
 | 1 | Inspect repository; establish architecture, initial structure, and documentation | Complete |
-| 2 | Backend configuration and safe environment handling | Planned |
-| 3 | Logging and centralized error handling | Planned |
-| 4 | MongoDB connection and repository foundation | Planned |
-| 5 | Authentication and authorization | Planned |
-| 6 | WebSocket infrastructure and authenticated session setup | Planned |
-| 7 | Voice session lifecycle, audio flow, turn detection, and interruption | Planned |
-| 8 | Browser microphone capture and streaming transport | Planned |
-| 9 | Deepgram streaming STT | Planned |
-| 10 | LangGraph orchestration and short-term checkpointer | Planned |
-| 11 | Provider-neutral LLM interface and Gemini adapter | Planned |
-| 12 | Azure Speech TTS streaming | Planned |
-| 13 | Conversation persistence and resumption | Planned |
-| 14 | Mem0 long-term memory | Planned |
-| 15 | Conversation and voice UI | Planned |
-| 16 | End-to-end testing, observability, and production hardening | Planned |
+| 2 | Backend configuration and safe environment handling | Complete |
+| 3 | Logging and centralized error handling | Complete |
+| 4 | MongoDB async connection lifecycle | Complete |
+| 5 | PostgreSQL user accounts, authentication, and authorization | Complete (live PostgreSQL API registration/login/profile verified) |
+| 6 | WebSocket infrastructure and authenticated session setup | Complete (PostgreSQL-backed user validation implemented; WebSocket unit coverage passes) |
+| 7 | Voice session lifecycle, audio flow, turn detection, and interruption | Complete |
+| 8 | Browser microphone capture and streaming transport | Complete |
+| 9 | Deepgram streaming STT | Complete |
+| 10 | LangGraph orchestration and short-term checkpointer | Complete |
+| 11 | Provider-neutral LLM interface and Gemini adapter | Complete |
+| 12 | Azure Speech TTS streaming | Complete |
+| 13 | Conversation persistence and resumption | Complete |
+| 14 | Mem0 long-term memory | Complete |
+| 15 | Conversation and voice UI | Complete (browser flow previously passed; PostgreSQL-backed auth API verified) |
+| 16 | End-to-end testing, observability, and production hardening | Partial (restart backend and recheck voice pipeline after Gemini fallback change) |
+| 17 | Selectable voice architectures: Deepgram + Gemini + Azure, or Gemini Live | Partial (MongoDB history and user-scoped Mem0 retrieval/storage wired into Live; live provider validation pending) |
 
 ## Phase gates
 

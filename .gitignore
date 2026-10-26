@@ -11,14 +11,15 @@ node_modules/
 .next/
 out/
 coverage/
+*.tsbuildinfo
 
 # Local secrets and environment
 .env
 .env.*
-!.env.example
 
 # Editors and operating systems
 .vscode/
 .idea/
 .DS_Store
 Thumbs.db
+.kilo/

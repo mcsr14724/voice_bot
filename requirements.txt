@@ -1,0 +1,16 @@
+# Backend runtime dependencies validated together on Python 3.13.
+fastapi[standard]==0.161.1
+email-validator==2.3.0
+azure-cognitiveservices-speech==1.53.0
+google-genai==2.32.0
+langgraph==1.2.16
+langgraph-checkpoint-mongodb==0.5.1
+mem0ai==2.2.1
+PyJWT==2.15.1
+pydantic-settings==2.16.1
+pwdlib[argon2]==0.3.1
+pymongo==4.19.0
+python-dotenv==1.2.4
+asyncpg==0.31.0
+uvicorn[standard]==0.54.0
+websockets==16.0
