@@ -77,9 +77,10 @@ class VoiceSession:
     _pending_transcript_segments: list[str] = field(default_factory=list, init=False, repr=False)
     _pending_transcript_language: str | None = field(default=None, init=False, repr=False)
 
-    async def run(self) -> None:
+    async def run(self, *, accept_websocket: bool = True) -> None:
         try:
-            await self.websocket.accept()
+            if accept_websocket:
+                await self.websocket.accept()
             self.status = SessionStatus.ACTIVE
             await self._send_json({"type": "session.ready", "session_id": self.session_id})
             logger.info("Voice session opened", extra={"session_id": self.session_id})

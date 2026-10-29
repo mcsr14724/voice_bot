@@ -24,12 +24,14 @@ class VoiceWebSocketTests(unittest.IsolatedAsyncioTestCase):
         websocket.accept = AsyncMock()
         websocket.close = AsyncMock()
         websocket.send_json = AsyncMock()
+        websocket.receive_json = AsyncMock()
         return websocket
 
     async def test_allowed_origin_and_valid_user_can_open_control_session(self) -> None:
         settings = Settings(_env_file=None, secret_key="s" * 32)
         token = create_access_token("507f1f77bcf86cd799439011", settings)
-        websocket = self.make_websocket(origin="http://localhost:3000", token=token)
+        websocket = self.make_websocket(origin="http://localhost:3000")
+        websocket.receive_json.return_value = {"type": "auth", "access_token": token}
         websocket.receive = AsyncMock(
             side_effect=[
                 {"type": "websocket.receive", "text": '{"type":"ping","request_id":"r1"}'},
@@ -59,13 +61,15 @@ class VoiceWebSocketTests(unittest.IsolatedAsyncioTestCase):
         websocket.close.assert_awaited_once()
         websocket.accept.assert_not_awaited()
 
-    async def test_missing_authentication_is_rejected_before_accept(self) -> None:
+    async def test_missing_authentication_is_rejected_after_accept(self) -> None:
         websocket = self.make_websocket(origin="http://localhost:3000")
+        websocket.receive_json.side_effect = TimeoutError
 
         await voice_websocket(websocket)
 
         websocket.close.assert_awaited_once()
-        websocket.accept.assert_not_awaited()
+        websocket.accept.assert_awaited_once()
+        self.assertEqual(websocket.close.await_args.kwargs["code"], 4401)
 
 
 class VoiceWebSocketASGITests(unittest.TestCase):
@@ -83,11 +87,11 @@ class VoiceWebSocketASGITests(unittest.TestCase):
             patch("backend.websocket.voice.get_settings", return_value=settings),
             TestClient(app) as client,
         ):
-            client.cookies.set("voice_access_token", token)
             with client.websocket_connect(
                 "/ws",
                 headers={"origin": "http://localhost:3000"},
             ) as websocket:
+                websocket.send_json({"type": "auth", "access_token": token})
                 self.assertEqual(websocket.receive_json()["type"], "session.ready")
                 websocket.send_json({"type": "ping", "request_id": "asgi-check"})
                 self.assertEqual(

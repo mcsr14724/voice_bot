@@ -1,12 +1,15 @@
 """Authenticated WebSocket session bootstrap and control-message handling."""
 
+import asyncio
 from uuid import uuid4
 
-from fastapi import WebSocket
+from fastapi import WebSocket, WebSocketDisconnect
+from pydantic import ValidationError
 
 from backend.core.config import get_settings
 from backend.core.security import decode_access_token
 from backend.database.repositories.user import UserRepository
+from backend.models.websocket import ClientAuthMessage
 from backend.voice.session import VoiceSession, VoiceSessionManager
 
 
@@ -18,16 +21,27 @@ async def voice_websocket(websocket: WebSocket) -> None:
         await websocket.close(code=1008, reason="Origin is not allowed")
         return
 
-    token = websocket.cookies.get("voice_access_token")
-    user_id = decode_access_token(token, settings) if token else None
+    await websocket.accept()
     user_repository: UserRepository | None = getattr(websocket.app.state, "user_repository", None)
-    if user_id is None or user_repository is None:
-        await websocket.close(code=1008, reason="Authentication required")
+    if user_repository is None:
+        await websocket.close(code=4401, reason="Authentication required")
+        return
+    try:
+        auth_message = ClientAuthMessage.model_validate(
+            await asyncio.wait_for(websocket.receive_json(), timeout=5)
+        )
+    except (TimeoutError, WebSocketDisconnect, ValidationError, ValueError):
+        await websocket.close(code=4401, reason="Authentication required")
+        return
+
+    user_id = decode_access_token(auth_message.access_token, settings)
+    if user_id is None:
+        await websocket.close(code=4401, reason="Authentication required")
         return
 
     user = await user_repository.find_by_id(user_id)
     if user is None:
-        await websocket.close(code=1008, reason="Authentication required")
+        await websocket.close(code=4401, reason="Authentication required")
         return
 
     requested_conversation_id = websocket.query_params.get("conversation_id")
@@ -64,6 +78,6 @@ async def voice_websocket(websocket: WebSocket) -> None:
     )
     await manager.register(session)
     try:
-        await session.run()
+        await session.run(accept_websocket=False)
     finally:
         await manager.unregister(session.session_id)

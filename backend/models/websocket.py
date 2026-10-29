@@ -5,6 +5,13 @@ from typing import Annotated, Literal
 from pydantic import BaseModel, ConfigDict, Field
 
 
+class ClientAuthMessage(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    type: Literal["auth"]
+    access_token: Annotated[str, Field(min_length=1, max_length=4_096)]
+
+
 class ClientTextMessage(BaseModel):
     model_config = ConfigDict(extra="forbid")
 

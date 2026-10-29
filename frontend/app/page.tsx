@@ -51,6 +51,7 @@ export default function HomePage() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
   const socketRef = useRef<WebSocket | null>(null);
+  const sessionReadyRef = useRef(false);
   const streamRef = useRef<MediaStream | null>(null);
   const contextRef = useRef<AudioContext | null>(null);
   const sourceRef = useRef<MediaStreamAudioSourceNode | null>(null);
@@ -199,7 +200,7 @@ export default function HomePage() {
   };
 
   async function startMicrophone(socket: WebSocket) {
-    if (recording || socket.readyState !== WebSocket.OPEN) return;
+    if (recording || socket.readyState !== WebSocket.OPEN || !sessionReadyRef.current) return;
     try {
       if (!playbackContextRef.current) playbackContextRef.current = new AudioContext();
       if (playbackContextRef.current.state === "suspended") await playbackContextRef.current.resume();
@@ -306,7 +307,7 @@ export default function HomePage() {
     if (existing) {
       if (startVoice) {
         voiceStartPendingRef.current = true;
-        if (existing.readyState === WebSocket.OPEN) {
+        if (existing.readyState === WebSocket.OPEN && sessionReadyRef.current) {
           voiceStartPendingRef.current = false;
           void startMicrophone(existing);
         }
@@ -320,19 +321,12 @@ export default function HomePage() {
     const socket = new WebSocket(`${VOICE_SOCKET_URL}${query}`);
     socket.binaryType = "arraybuffer";
     socketRef.current = socket;
+    sessionReadyRef.current = false;
     if (startVoice) voiceStartPendingRef.current = true;
 
     socket.onopen = () => {
-      setConnected(true);
-      setStatus(startVoice ? "Starting voice mode…" : "Ready when you are.");
-      if (pendingTextRef.current) {
-        socket.send(JSON.stringify({ type: "text.send", ...pendingTextRef.current }));
-        pendingTextRef.current = null;
-      }
-      if (voiceStartPendingRef.current) {
-        voiceStartPendingRef.current = false;
-        void startMicrophone(socket);
-      }
+      setStatus("Authenticating your voice session…");
+      socket.send(JSON.stringify({ type: "auth", access_token: token }));
     };
     socket.onmessage = (event: MessageEvent) => {
       if (socketRef.current !== socket) return;
@@ -354,9 +348,20 @@ export default function HomePage() {
       try {
         const message = JSON.parse(event.data as string) as ServerEvent;
         if (message.type === "session.ready") {
+          sessionReadyRef.current = true;
+          setConnected(true);
           activeAudioGenerationRef.current = null;
           invalidAudioGenerationRef.current = 0;
           if (message.session_id) setActiveConversationId(message.session_id);
+          setStatus(voiceStartPendingRef.current ? "Starting voice mode…" : "Ready when you are.");
+          if (pendingTextRef.current) {
+            socket.send(JSON.stringify({ type: "text.send", ...pendingTextRef.current }));
+            pendingTextRef.current = null;
+          }
+          if (voiceStartPendingRef.current) {
+            voiceStartPendingRef.current = false;
+            void startMicrophone(socket);
+          }
         }
         if (message.type === "transcript") {
           const text = message.text?.trim() ?? "";
@@ -449,13 +454,17 @@ export default function HomePage() {
       }
     };
     socket.onerror = () => setError("Could not connect. Check the backend connection.");
-    socket.onclose = () => {
+    socket.onclose = (event: CloseEvent) => {
       socketRef.current = null;
+      sessionReadyRef.current = false;
       voiceStartPendingRef.current = false;
       stopMicrophone();
       closePlaybackContext();
       setConnected(false);
       setAssistantSpeaking(false);
+      if (event.code === 4401) {
+        setError("Voice sign-in expired. Sign out and sign in again.");
+      }
       if (voiceModeRef.current) {
         voiceModeRef.current = false;
         setVoiceMode(false);
@@ -472,6 +481,7 @@ export default function HomePage() {
     closePlaybackContext();
     socket?.close(1000, "Conversation ended");
     socketRef.current = null;
+    sessionReadyRef.current = false;
     setConnected(false);
     setVoiceMode(false);
     voiceModeRef.current = false;
@@ -494,7 +504,7 @@ export default function HomePage() {
     }
     setVoiceMode(true);
     voiceModeRef.current = true;
-    if (socketRef.current?.readyState === WebSocket.OPEN) {
+    if (socketRef.current?.readyState === WebSocket.OPEN && sessionReadyRef.current) {
       void startMicrophone(socketRef.current);
     } else {
       connect(activeConversationId ?? undefined, true);
@@ -509,7 +519,7 @@ export default function HomePage() {
     setDraft("");
     setStatus("Thinking of a reply…");
     const payload = { text, voice_response: voiceMode };
-    if (socketRef.current?.readyState === WebSocket.OPEN) {
+    if (socketRef.current?.readyState === WebSocket.OPEN && sessionReadyRef.current) {
       socketRef.current.send(JSON.stringify({ type: "text.send", ...payload }));
     } else {
       pendingTextRef.current = payload;
