@@ -35,6 +35,23 @@ Start the API from the repository root:
 py -m uvicorn backend.main:app --reload
 ```
 
+For local development, set `VOICE_BOT_ENVIRONMENT=development` and allow the local frontend origin in the root `.env`:
+
+```dotenv
+VOICE_BOT_ENVIRONMENT=development
+VOICE_BOT_FRONTEND_ORIGINS=["http://localhost:3000"]
+```
+
+If you want to keep production values in `.env`, override them for only the current PowerShell session before starting the API:
+
+```powershell
+$env:VOICE_BOT_ENVIRONMENT = "development"
+$env:VOICE_BOT_FRONTEND_ORIGINS = '["http://localhost:3000"]'
+fastapi dev backend\main.py
+```
+
+`fastapi dev` sets `FASTAPI_ENV=development`, but the application uses the separate `VOICE_BOT_ENVIRONMENT` setting. Production must keep HTTPS frontend origins.
+
 The liveness endpoint is `http://localhost:8000/api/v1/health`; readiness is reported at `/api/v1/ready` and checks PostgreSQL and MongoDB. HTTP responses include a generated `X-Request-ID`, and request logs contain method, path, status, and elapsed time without query strings or request bodies. Run backend unit tests with `py -m unittest discover -s backend\tests\unit -v`.
 
 Start the browser client in a second terminal:
@@ -47,7 +64,7 @@ npm run dev
 
 Open `http://localhost:3000`. Set `NEXT_PUBLIC_API_URL` to the backend API base URL, including `/api/v1` (locally: `http://localhost:8000/api/v1`); the client selects `ws://` or `wss://` for its voice socket from that URL. Keep the frontend and API on the same host name locally so the HttpOnly WebSocket authentication cookie is sent.
 
-Set `VOICE_BOT_POSTGRES_DSN` in `.env` to connect the local PostgreSQL account database. The app creates its `users` and migration tables automatically. Set `VOICE_BOT_MONGODB_URI` for MongoDB conversation documents and LangGraph checkpoints. If both are configured, existing MongoDB account IDs and Argon2 password hashes are copied into PostgreSQL once, preserving ownership links; source MongoDB documents are left untouched. MongoDB is optional for login but required for conversation history and durable checkpoints.
+Set `VOICE_BOT_POSTGRES_DSN` in the repository-root `.env` to connect PostgreSQL; the app creates its `users` and migration tables automatically. A Render PostgreSQL **internal** URL only resolves from services on Render's private network, so it will fail with a DNS error when used by a locally running backend. For local development, either run PostgreSQL locally and use its localhost DSN, or use Render's **external** database URL if external access is enabled and allowed by your network. Keep the database URL secret and do not commit or share it. Set `VOICE_BOT_MONGODB_URI` for MongoDB conversation documents and LangGraph checkpoints. If both are configured, existing MongoDB account IDs and Argon2 password hashes are copied into PostgreSQL once, preserving ownership links; source MongoDB documents are left untouched. MongoDB is optional for login but required for conversation history and durable checkpoints.
 
 Authentication endpoints are `POST /api/v1/auth/register`, `POST /api/v1/auth/login`, and `GET /api/v1/auth/me`. Configure PostgreSQL and a random `VOICE_BOT_SECRET_KEY` (at least 32 characters) before using them. Passwords are stored as Argon2 hashes in PostgreSQL; access tokens expire after 30 minutes. Registration and login use JSON bodies, and `/me` accepts a bearer token.
 

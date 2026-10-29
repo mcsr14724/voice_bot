@@ -55,7 +55,7 @@ class PostgresDatabase:
             await self.close()
             logger.error("PostgreSQL connection failed (%s)", type(error).__name__)
             raise RuntimeError(
-                "PostgreSQL connection failed; check the local service and configured DSN"
+                "PostgreSQL connection failed; check the configured host, network access, and DSN"
             ) from None
 
     async def migrate_legacy_mongo_users(

@@ -59,7 +59,10 @@ class PostgresDatabaseTests(unittest.IsolatedAsyncioTestCase):
         error = asyncpg.InvalidPasswordError("password=do-not-log")
 
         with patch("backend.database.postgres.asyncpg.create_pool", new=AsyncMock(side_effect=error)):
-            with self.assertRaisesRegex(RuntimeError, "PostgreSQL connection failed") as raised:
+            with self.assertRaisesRegex(
+                RuntimeError,
+                "PostgreSQL connection failed; check the configured host, network access, and DSN",
+            ) as raised:
                 await database.connect()
 
         self.assertNotIn("do-not-log", str(raised.exception))

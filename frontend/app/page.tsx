@@ -28,6 +28,7 @@ type ChatMessage = { id: string; role: "user" | "assistant"; content: string; in
 type ConversationSummary = { id: string; created_at: string; updated_at: string; preview: string };
 type ConversationDetail = ConversationSummary & { messages: { role: string; content: string }[] };
 type VoiceArchitecture = "cascade" | "gemini_live";
+type AudioInputDevice = { deviceId: string; label: string };
 type VoiceDiagnosticKey = "websocket" | "microphone" | "audioStream" | "deepgram" | "transcript";
 type VoiceDiagnostics = Record<VoiceDiagnosticKey, string>;
 
@@ -52,6 +53,8 @@ export default function HomePage() {
   const [status, setStatus] = useState("Your private space for a conversation.");
   const [showVoiceDiagnostics, setShowVoiceDiagnostics] = useState(false);
   const [voiceDiagnostics, setVoiceDiagnostics] = useState<VoiceDiagnostics>(INITIAL_VOICE_DIAGNOSTICS);
+  const [audioInputDevices, setAudioInputDevices] = useState<AudioInputDevice[]>([]);
+  const [selectedAudioInputId, setSelectedAudioInputId] = useState("");
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [draft, setDraft] = useState("");
   const [liveTranscript, setLiveTranscript] = useState("");
@@ -254,8 +257,12 @@ export default function HomePage() {
     recordingRef.current = false;
   };
 
-  async function startMicrophone(socket: WebSocket, architecture: VoiceArchitecture = voiceArchitecture) {
-    if (recording || socket.readyState !== WebSocket.OPEN || !sessionReadyRef.current) return;
+  async function startMicrophone(
+    socket: WebSocket,
+    architecture: VoiceArchitecture = voiceArchitecture,
+    audioInputId = selectedAudioInputId,
+  ) {
+    if (recordingRef.current || socket.readyState !== WebSocket.OPEN || !sessionReadyRef.current) return;
     setShowVoiceDiagnostics(true);
     let microphoneStream: MediaStream | null = null;
     let inputContext: AudioContext | null = null;
@@ -269,9 +276,54 @@ export default function HomePage() {
     try {
       if (!playbackContextRef.current) playbackContextRef.current = new AudioContext();
       if (playbackContextRef.current.state === "suspended") await playbackContextRef.current.resume();
+      const audioConstraints: MediaTrackConstraints = {
+        channelCount: 1,
+        echoCancellation: true,
+        noiseSuppression: true,
+        autoGainControl: true,
+      };
+      if (audioInputId) audioConstraints.deviceId = { exact: audioInputId };
       microphoneStream = await navigator.mediaDevices.getUserMedia({
-        audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+        audio: audioConstraints,
       });
+      const audioTrack = microphoneStream.getAudioTracks()[0];
+      if (!audioTrack) throw new Error("The selected input did not provide an audio track.");
+      const trackSettings = audioTrack.getSettings();
+      const activeDeviceId = trackSettings.deviceId ?? audioInputId;
+      if (activeDeviceId) setSelectedAudioInputId(activeDeviceId);
+      audioTrack.onmute = () => {
+        const message = "Browser reports the selected microphone is muted";
+        updateVoiceDiagnostic("microphone", message);
+        setStatus("The selected microphone is muted or temporarily unavailable. Unmute it or choose another input device.");
+      };
+      audioTrack.onunmute = () => {
+        updateVoiceDiagnostic("microphone", `Microphone input resumed${audioTrack.label ? `: ${audioTrack.label}` : ""}`);
+      };
+      audioTrack.onended = () => {
+        const message = "Microphone track ended";
+        updateVoiceDiagnostic("microphone", message);
+        setStatus("The microphone stopped. Check that the device is still connected, then turn voice mode off and on.");
+      };
+      let deviceListError = "";
+      try {
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        const inputs = devices
+          .filter((device) => device.kind === "audioinput")
+          .map((device, index) => ({
+            deviceId: device.deviceId,
+            label: device.label || `Microphone ${index + 1}`,
+          }));
+        if (activeDeviceId && !inputs.some((device) => device.deviceId === activeDeviceId)) {
+          inputs.unshift({ deviceId: activeDeviceId, label: audioTrack.label || "Current microphone" });
+        }
+        setAudioInputDevices(inputs);
+      } catch (cause) {
+        deviceListError = cause instanceof Error ? cause.message : "device enumeration failed";
+      }
+      updateVoiceDiagnostic(
+        "microphone",
+        `Using ${audioTrack.label || "selected microphone"} (${trackSettings.sampleRate ?? "unknown"} Hz, ${trackSettings.channelCount ?? "unknown"} channel${trackSettings.channelCount === 1 ? "" : "s"})${deviceListError ? `; device list unavailable: ${deviceListError}` : ""}`,
+      );
       inputContext = new AudioContext();
       await inputContext.audioWorklet.addModule("/audio/pcm-capture-processor.js");
       browserAudioFrameSentRef.current = false;
@@ -298,8 +350,8 @@ export default function HomePage() {
           updateVoiceDiagnostic(
             "microphone",
             event.data.rms >= 0.008
-              ? `Speech-level audio detected (RMS ${event.data.rms.toFixed(4)})`
-              : `Low input level (RMS ${event.data.rms.toFixed(4)}; speech threshold 0.008)`,
+              ? `Speech-level audio detected on ${audioTrack.label || "selected input"} (RMS ${event.data.rms.toFixed(4)})`
+              : `${audioTrack.muted ? "Muted; " : ""}Low input on ${audioTrack.label || "selected input"} (RMS ${event.data.rms.toFixed(4)}; speech threshold 0.008)`,
           );
         }
         if (event.data.rms >= 0.008 && !microphoneSignalDetectedRef.current) {
@@ -446,6 +498,7 @@ export default function HomePage() {
     conversationId?: string,
     startVoice = false,
     architecture: VoiceArchitecture = voiceArchitecture,
+    audioInputId = selectedAudioInputId,
   ) => {
     if (!token) return;
     if (startVoice) setShowVoiceDiagnostics(true);
@@ -455,7 +508,7 @@ export default function HomePage() {
         voiceStartPendingRef.current = true;
         if (existing.readyState === WebSocket.OPEN && sessionReadyRef.current) {
           voiceStartPendingRef.current = false;
-          void startMicrophone(existing, architecture);
+          void startMicrophone(existing, architecture, audioInputId);
         }
       }
       return;
@@ -513,7 +566,7 @@ export default function HomePage() {
           }
           if (voiceStartPendingRef.current) {
             voiceStartPendingRef.current = false;
-            void startMicrophone(socket, architecture);
+            void startMicrophone(socket, architecture, audioInputId);
           }
         }
         if (message.type === "audio.ready") {
@@ -757,6 +810,17 @@ export default function HomePage() {
     } else {
       connect(activeConversationId ?? undefined, true);
     }
+  };
+
+  const selectAudioInput = (deviceId: string) => {
+    setSelectedAudioInputId(deviceId);
+    if (!voiceModeRef.current) return;
+
+    const conversationId = messages.length > 0 ? activeConversationId ?? undefined : undefined;
+    const architecture = voiceArchitecture;
+    disconnect();
+    setStatus("Switching microphone input…");
+    window.setTimeout(() => connect(conversationId, true, architecture, deviceId), 150);
   };
 
   const submitText = (event: FormEvent<HTMLFormElement>) => {
@@ -1020,6 +1084,21 @@ export default function HomePage() {
           </div>
           {showVoiceDiagnostics && (
             <div className="voice-diagnostics" aria-label="Voice connection diagnostics">
+              <label className="microphone-picker">
+                <strong>Input device</strong>
+                <select
+                  name="audioInput"
+                  aria-label="Select microphone"
+                  value={selectedAudioInputId}
+                  onChange={(event) => selectAudioInput(event.target.value)}
+                  disabled={audioInputDevices.length === 0}
+                >
+                  {audioInputDevices.length === 0 && <option value="">No microphone devices listed</option>}
+                  {audioInputDevices.map((device) => (
+                    <option key={device.deviceId} value={device.deviceId}>{device.label}</option>
+                  ))}
+                </select>
+              </label>
               <p><strong>WebSocket</strong>{voiceDiagnostics.websocket}</p>
               <p><strong>Microphone</strong>{voiceDiagnostics.microphone}</p>
               <p><strong>Audio stream</strong>{voiceDiagnostics.audioStream}</p>
