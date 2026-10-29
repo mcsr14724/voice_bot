@@ -6,6 +6,7 @@ from typing import Any, Awaitable, Callable, Sequence
 from urllib.parse import urlencode
 
 from websockets.asyncio.client import connect
+from websockets.exceptions import InvalidStatus
 
 from backend.voice.audio import AudioFrame, AudioStreamEnd
 
@@ -29,6 +30,25 @@ class DeepgramTranscriber:
         self._language = language
         self._language_hints = tuple(hint.strip() for hint in language_hints if hint.strip())
 
+    @staticmethod
+    def connection_error_code(error: Exception) -> str:
+        """Classify connection failures without exposing provider response details."""
+        if isinstance(error, InvalidStatus):
+            status_code = error.response.status_code
+            if status_code in {401, 403}:
+                return "credentials_rejected"
+            if status_code == 429:
+                return "rate_limited"
+            if 400 <= status_code < 500:
+                return "request_rejected"
+            if status_code >= 500:
+                return "provider_unavailable"
+        if isinstance(error, TimeoutError):
+            return "connection_timeout"
+        if isinstance(error, OSError):
+            return "connection_failed"
+        return "provider_unavailable"
+
     async def consume(self, frames: AudioQueue, emit: TranscriptEmitter) -> None:
         query_parameters = [
             ("model", self._model),
@@ -50,7 +70,14 @@ class DeepgramTranscriber:
             open_timeout=10,
             max_size=1_048_576,
         ) as socket:
-            sender = asyncio.create_task(self._send_frames(socket, frames))
+            await emit({"type": "transcription.connected"})
+            sender = asyncio.create_task(
+                self._send_frames(
+                    socket,
+                    frames,
+                    on_first_audio=lambda: emit({"type": "transcription.audio_forwarded"}),
+                )
+            )
             receiver = asyncio.create_task(self._receive_results(socket, emit))
             try:
                 done, _ = await asyncio.wait(
@@ -74,7 +101,12 @@ class DeepgramTranscriber:
                 await asyncio.gather(sender, receiver, return_exceptions=True)
 
     @staticmethod
-    async def _send_frames(socket: Any, frames: AudioQueue) -> None:
+    async def _send_frames(
+        socket: Any,
+        frames: AudioQueue,
+        *,
+        on_first_audio: Callable[[], Awaitable[None]] | None = None,
+    ) -> None:
         while True:
             frame = await frames.get()
             if frame is None:
@@ -84,6 +116,9 @@ class DeepgramTranscriber:
                 await socket.send(json.dumps({"type": "Finalize"}))
                 continue
             await socket.send(frame.pcm_s16le)
+            if on_first_audio is not None:
+                await on_first_audio()
+                on_first_audio = None
 
     @classmethod
     async def _receive_results(cls, socket: Any, emit: TranscriptEmitter) -> None:

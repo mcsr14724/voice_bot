@@ -132,6 +132,9 @@ button:focus-visible, input:focus-visible, textarea:focus-visible { outline: 2px
 .voice-status-live { color: #c4d88a; }
 .status-pulse { width: 5px; height: 5px; border-radius: 50%; background: transparent; }
 .voice-status-live .status-pulse { background: var(--lime); box-shadow: 0 0 9px rgba(214,243,106,.6); }
+.voice-diagnostics { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px 14px; margin: 0 auto 8px; color: var(--subtle); font-size: 9px; line-height: 1.4; }
+.voice-diagnostics p { min-width: 0; margin: 0; overflow-wrap: anywhere; }
+.voice-diagnostics strong { margin-right: 5px; color: #c4d88a; font-weight: 600; }
 .composer { min-height: 60px; padding: 8px 9px 8px 17px; display: flex; align-items: flex-end; gap: 12px; border: 1px solid rgba(240,240,225,.14); border-radius: 17px; background: #1a1c18; box-shadow: 0 8px 30px rgba(0,0,0,.16); }
 .composer:focus-within { border-color: rgba(214,243,106,.35); }
 .composer textarea { max-height: 160px; min-height: 42px; flex: 1; padding: 11px 0 8px; resize: none; border: 0; outline: 0; background: transparent; color: var(--ink); font-size: 13px; line-height: 1.5; }
@@ -172,6 +175,7 @@ button:focus-visible, input:focus-visible, textarea:focus-visible { outline: 2px
   .message-list { gap: 21px; }
   .message-bubble { max-width: 88%; }
   .message-bubble p { font-size: 13px; }
+  .voice-diagnostics { grid-template-columns: 1fr; gap: 3px; }
   .composer-area { padding: 5px 11px 12px; }
   .composer { min-height: 55px; padding-left: 13px; border-radius: 15px; }
   .composer textarea { font-size: 12px; }

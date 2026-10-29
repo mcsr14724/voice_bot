@@ -72,7 +72,7 @@ class PcmCaptureProcessor extends AudioWorkletProcessor {
       view.setInt16(index * 2, clipped < 0 ? clipped * 32768 : clipped * 32767, true);
     });
     this.samples = [];
-    this.port.postMessage({ buffer, speechStarted, speechEnded }, [buffer]);
+    this.port.postMessage({ buffer, speechStarted, speechEnded, rms }, [buffer]);
   }
 }
 

@@ -5,11 +5,39 @@ import json
 import unittest
 from unittest.mock import patch
 
+from websockets.exceptions import InvalidStatus
+
 from backend.voice.audio import AudioFrame, AudioStreamEnd
 from backend.voice.transcription import DeepgramTranscriber
 
 
 class DeepgramTranscriberTests(unittest.IsolatedAsyncioTestCase):
+    def test_classifies_connection_failures_without_provider_details(self) -> None:
+        for status_code, expected in (
+            (401, "credentials_rejected"),
+            (403, "credentials_rejected"),
+            (429, "rate_limited"),
+            (400, "request_rejected"),
+            (503, "provider_unavailable"),
+        ):
+            with self.subTest(status_code=status_code):
+                response = type("Response", (), {"status_code": status_code})()
+                error = InvalidStatus(response)
+
+                self.assertEqual(
+                    DeepgramTranscriber.connection_error_code(error),
+                    expected,
+                )
+
+        self.assertEqual(
+            DeepgramTranscriber.connection_error_code(TimeoutError()),
+            "connection_timeout",
+        )
+        self.assertEqual(
+            DeepgramTranscriber.connection_error_code(ConnectionError()),
+            "connection_failed",
+        )
+
     async def test_stream_connects_with_key_streams_audio_and_emits_transcript(self) -> None:
         closed = asyncio.Event()
         sent: list[bytes | str] = []
@@ -62,7 +90,14 @@ class DeepgramTranscriberTests(unittest.IsolatedAsyncioTestCase):
         self.assertIn("sample_rate=16000", connector.call_args.args[0])
         self.assertEqual(connector.call_args.kwargs["additional_headers"], {"Authorization": "Token test-key"})
         self.assertEqual(sent[0], bytes(640))
-        self.assertEqual(events, [{"type": "transcript", "text": "Good morning.", "is_final": True, "speech_final": True}])
+        self.assertEqual(
+            events,
+            [
+                {"type": "transcription.connected"},
+                {"type": "transcription.audio_forwarded"},
+                {"type": "transcript", "text": "Good morning.", "is_final": True, "speech_final": True},
+            ],
+        )
 
     async def test_audio_queue_sends_pcm_and_stream_controls(self) -> None:
         frames: asyncio.Queue[AudioFrame | AudioStreamEnd | None] = asyncio.Queue()
@@ -78,9 +113,15 @@ class DeepgramTranscriberTests(unittest.IsolatedAsyncioTestCase):
                 self.sent.append(value)
 
         socket = Socket()
-        await DeepgramTranscriber._send_frames(socket, frames)
+        forwarded: list[bool] = []
+
+        async def on_first_audio() -> None:
+            forwarded.append(True)
+
+        await DeepgramTranscriber._send_frames(socket, frames, on_first_audio=on_first_audio)
 
         self.assertEqual(socket.sent[0], bytes(640))
+        self.assertEqual(forwarded, [True])
         self.assertEqual(json.loads(socket.sent[1]), {"type": "Finalize"})
         self.assertEqual(json.loads(socket.sent[2]), {"type": "CloseStream"})
 

@@ -107,6 +107,8 @@ class VoiceSession:
                         await self._send_json({"type": "error", "code": "audio_backpressure"})
                         await self.close(code=1013, reason="Audio consumer is behind")
                         return
+                    if self._audio_sequence == 0:
+                        await self._send_json({"type": "audio.receiving", "frames_received": 1})
                     self._audio_sequence += 1
                     continue
                 raw_message = event.get("text")
@@ -264,14 +266,19 @@ class VoiceSession:
                 except asyncio.CancelledError:
                     raise
                 except Exception as error:
+                    error_code = DeepgramTranscriber.connection_error_code(error)
+                    extra: dict[str, Any] = {
+                        "session_id": self.session_id,
+                        "error_type": type(error).__name__,
+                    }
                     logger.warning(
                         "Deepgram transcription is unavailable",
-                        extra={"session_id": self.session_id, "error_type": type(error).__name__},
+                        extra=extra,
                     )
                     if self.status is not SessionStatus.ACTIVE:
                         return
                     await self._send_json(
-                        {"type": "transcription.error", "code": "provider_unavailable"}
+                        {"type": "transcription.error", "code": error_code}
                     )
                     await asyncio.sleep(retry_delay)
                     retry_delay = min(retry_delay * 2, 8.0)
