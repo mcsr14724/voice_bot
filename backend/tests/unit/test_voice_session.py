@@ -80,6 +80,7 @@ class VoiceSessionTests(unittest.IsolatedAsyncioTestCase):
             event_types = [message["type"] for message in sent_messages]
             self.assertIn("speech.started", event_types)
             self.assertIn("speech.ended", event_types)
+            self.assertLess(event_types.index("audio.ready"), event_types.index("transcription.unavailable"))
             self.assertEqual(session.audio_frames.qsize(), 0)
             self.assertIn({"type": "audio.ready", "encoding": "pcm_s16le", "sample_rate": 16000, "channels": 1, "frame_duration_ms": 20}, sent_messages)
             await receive_events.put({"type": "websocket.disconnect"})

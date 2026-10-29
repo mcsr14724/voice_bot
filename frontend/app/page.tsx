@@ -241,7 +241,6 @@ export default function HomePage() {
       recordingRef.current = true;
       setVoiceMode(true);
       voiceModeRef.current = true;
-      setStatus("Listening. Speak naturally; you can interrupt Vox at any time.");
       setError("");
     } catch (cause) {
       setVoiceMode(false);
@@ -363,6 +362,9 @@ export default function HomePage() {
             void startMicrophone(socket);
           }
         }
+        if (message.type === "audio.ready") {
+          setStatus("Listening. Speak naturally; you can interrupt Vox at any time.");
+        }
         if (message.type === "transcript") {
           const text = message.text?.trim() ?? "";
           if (message.speech_final && isBackchannelOnly([...pendingTranscriptRef.current, text].join(" "))) {
@@ -447,7 +449,9 @@ export default function HomePage() {
         }
         if (message.type === "assistant.audio.unavailable") setStatus("Speech output is not configured.");
         if (message.type === "transcription.error") setStatus("Speech recognition had a problem. I’m still listening.");
-        if (message.type === "transcription.unavailable") setStatus("Speech recognition is not configured.");
+        if (message.type === "transcription.unavailable") {
+          setStatus("Speech recognition is not configured. Ask the app owner to set VOICE_BOT_DEEPGRAM_API_KEY on the backend.");
+        }
         if (message.type === "conversation.error") setStatus("Could not start this reply. Please try again.");
       } catch {
         setError("Received an unreadable server message.");
@@ -654,9 +658,9 @@ export default function HomePage() {
           <p className="auth-description">Chat by text or switch on voice whenever you’re ready.</p>
           <form className="auth-form" onSubmit={submitCredentials}>
             <label htmlFor="email">Email address</label>
-            <input id="email" type="email" autoComplete="email" required value={email} onChange={(event) => setEmail(event.target.value)} placeholder="you@example.com" />
+            <input id="email" name="email" type="email" autoComplete="email" required value={email} onChange={(event) => setEmail(event.target.value)} placeholder="you@example.com" />
             <div className="label-row"><label htmlFor="password">Password</label>{mode === "register" && <span>12 characters minimum</span>}</div>
-            <input id="password" type="password" autoComplete={mode === "login" ? "current-password" : "new-password"} minLength={mode === "register" ? 12 : 1} required value={password} onChange={(event) => setPassword(event.target.value)} placeholder="Your password" />
+            <input id="password" name="password" type="password" autoComplete={mode === "login" ? "current-password" : "new-password"} minLength={mode === "register" ? 12 : 1} required value={password} onChange={(event) => setPassword(event.target.value)} placeholder="Your password" />
             {error && <p className="form-error" role="alert">{error}</p>}
             <button className="auth-submit" type="submit">{mode === "login" ? "Sign in" : "Create account"}<span>↗</span></button>
           </form>
@@ -771,7 +775,7 @@ export default function HomePage() {
             <span className="status-pulse" />{assistantSpeaking ? "Vox is speaking · talk to interrupt" : status}
           </div>
           <form className="composer" onSubmit={submitText}>
-            <textarea value={draft} onChange={(event) => setDraft(event.target.value)} onKeyDown={handleComposerKey} placeholder={voiceMode ? "Say something or type a message…" : "Message Vox…"} rows={1} aria-label="Message Vox" />
+            <textarea name="message" value={draft} onChange={(event) => setDraft(event.target.value)} onKeyDown={handleComposerKey} placeholder={voiceMode ? "Say something or type a message…" : "Message Vox…"} rows={1} aria-label="Message Vox" />
             <div className="composer-actions">
               <button className={`composer-voice ${voiceMode ? "composer-voice-active" : ""}`} type="button" onClick={toggleVoiceMode} aria-label={voiceMode ? "Turn voice mode off" : "Turn voice mode on"} title={voiceMode ? "Voice mode on — click to turn off" : "Turn on voice mode"}>
                 <span aria-hidden="true">{voiceMode ? "◖" : "♩"}</span>
