@@ -981,11 +981,18 @@ export default function HomePage() {
   }
 
   return (
-    <main className="chat-app">
-      <aside className={`sidebar ${sidebarOpen ? "" : "sidebar-collapsed"}`}>
+    <main className={`chat-app ${sidebarOpen ? "" : "sidebar-is-collapsed"}`}>
+      <aside id="chat-history-sidebar" className={`sidebar ${sidebarOpen ? "" : "sidebar-collapsed"}`}>
         <div className="sidebar-brand-row">
           <a className="brand" href="#home" aria-label="Vox home"><span className="brand-mark">v</span> vox<span className="brand-period">.</span></a>
-          <button className="icon-button sidebar-close" onClick={() => setSidebarOpen(false)} aria-label="Close sidebar" title="Close sidebar">‹</button>
+          <button
+            className="icon-button sidebar-close"
+            onClick={() => setSidebarOpen(false)}
+            aria-label="Collapse chat history"
+            aria-controls="chat-history-sidebar"
+            aria-expanded={sidebarOpen}
+            title="Collapse chat history"
+          >‹</button>
         </div>
         <button className="new-chat-button" onClick={startNewChat}><span>＋</span> New chat</button>
         <div className="history-label">RECENT</div>
@@ -1015,8 +1022,8 @@ export default function HomePage() {
 
       <section className="conversation-panel">
         <header className="chat-header">
-          <div className="mobile-brand"><button className="icon-button mobile-menu" onClick={() => setSidebarOpen((open) => !open)} aria-label="Toggle chat history">☰</button><span className="brand-mark">v</span> vox<span className="brand-period">.</span></div>
-          {!sidebarOpen && <button className="icon-button sidebar-open-button" onClick={() => setSidebarOpen(true)} aria-label="Show chat history">☰</button>}
+          <div className="mobile-brand"><button className="icon-button mobile-menu" onClick={() => setSidebarOpen((open) => !open)} aria-label={sidebarOpen ? "Collapse chat history" : "Expand chat history"} aria-controls="chat-history-sidebar" aria-expanded={sidebarOpen}>☰</button><span className="brand-mark">v</span> vox<span className="brand-period">.</span></div>
+          {!sidebarOpen && <button className="icon-button sidebar-open-button" onClick={() => setSidebarOpen(true)} aria-label="Expand chat history" aria-controls="chat-history-sidebar" aria-expanded={sidebarOpen} title="Expand chat history">☰</button>}
           <div className="conversation-title"><span className={`status-dot ${recording ? "live" : connected ? "ready" : ""}`} />{recording ? "Listening" : connected ? "Conversation ready" : "New conversation"}</div>
           <label className="architecture-picker">
             <span>Voice engine</span>
