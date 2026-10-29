@@ -108,7 +108,7 @@ async def login(
         max_age=30 * 60,
         httponly=True,
         secure=settings.environment == "production",
-        samesite="strict",
+        samesite="none" if settings.environment == "production" else "strict",
         path=f"{settings.api_v1_prefix}/ws",
     )
     return TokenResponse(access_token=token)

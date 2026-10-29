@@ -88,6 +88,29 @@ class AuthenticationRouteTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(current_user.status_code, 200)
         self.assertEqual(current_user.json()["email"], "person@example.com")
 
+    async def test_production_login_cookie_supports_cross_site_websocket(self) -> None:
+        self.settings = Settings(
+            _env_file=None,
+            environment="production",
+            frontend_origins=["https://frontend.example.com"],
+            secret_key="s" * 32,
+        )
+        await self.repository.create(
+            "person@example.com", await hash_password("correct-horse-battery")
+        )
+
+        login = await self.client.post(
+            "/api/v1/auth/login",
+            json={"email": "person@example.com", "password": "correct-horse-battery"},
+        )
+
+        self.assertEqual(login.status_code, 200)
+        cookie = login.headers["set-cookie"].lower()
+        self.assertIn("samesite=none", cookie)
+        self.assertIn("secure", cookie)
+        self.assertIn("httponly", cookie)
+        self.assertIn("path=/api/v1/ws", cookie)
+
     async def test_bad_password_uses_generic_authentication_error(self) -> None:
         await self.repository.create("person@example.com", await hash_password("correct-password"))
 
