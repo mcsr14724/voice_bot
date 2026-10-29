@@ -11,6 +11,7 @@ from langgraph.checkpoint.base import BaseCheckpointSaver
 from langgraph.config import get_stream_writer
 from langgraph.graph import END, START, MessagesState, StateGraph
 
+from backend.llm.language import LANGUAGE_RESPONSE_POLICY
 from backend.llm.protocol import ChatMessage, ChatModel
 from backend.memory.protocol import LongTermMemory
 
@@ -66,10 +67,10 @@ def build_conversation_graph(
                 ChatMessage(
                     role="system",
                     content=(
-                        f"The user's latest spoken message was detected as {language_name} "
-                        f"({detected_language}). Reply entirely in {language_name}. Do not switch "
-                        "to another language unless the user explicitly asks for a translation. "
-                        "Use the normal writing system for that language."
+                        f"Speech recognition detected the latest user input as {language_name} "
+                        f"({detected_language}). Treat this as input-language evidence, not as an "
+                        "override of an explicit request to answer in another language. "
+                        + LANGUAGE_RESPONSE_POLICY
                     ),
                 ),
             )

@@ -11,9 +11,11 @@ class FakeModels:
     def __init__(self, results):
         self.results = list(results)
         self.calls: list[str] = []
+        self.configs = []
 
     async def generate_content_stream(self, *, model, contents, config):
         self.calls.append(model)
+        self.configs.append(config)
         result = self.results.pop(0)
         if isinstance(result, Exception):
             raise result
@@ -44,6 +46,22 @@ def make_model(results):
 
 
 class GeminiFallbackTests(unittest.IsolatedAsyncioTestCase):
+    async def test_language_policy_prefers_requested_language_then_latest_input_language(self) -> None:
+        model = make_model([chunks("नमस्ते")])
+
+        output = [
+            part
+            async for part in model.stream_reply(
+                [ChatMessage(role="user", content="Please answer in Hindi: say hello.")]
+            )
+        ]
+
+        instruction = model._async_client.models.configs[0].system_instruction
+        self.assertEqual(output, ["नमस्ते"])
+        self.assertIn("explicitly asks you to answer or speak", instruction)
+        self.assertIn("regardless of the input language", instruction)
+        self.assertIn("If no response language is explicitly requested", instruction)
+
     async def test_primary_error_before_first_token_uses_fallback(self) -> None:
         model = make_model([RuntimeError("primary unavailable"), chunks("Backup", " reply.")])
 

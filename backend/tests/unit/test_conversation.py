@@ -38,6 +38,30 @@ class FakeLongTermMemory:
 
 
 class ConversationGraphTests(unittest.IsolatedAsyncioTestCase):
+    async def test_detected_input_language_does_not_override_requested_output_language(self) -> None:
+        model = FakeChatModel()
+        graph = build_conversation_graph(InMemorySaver(), model)
+        orchestrator = ConversationOrchestrator(graph, model_configured=True)
+
+        _ = [
+            event
+            async for event in orchestrator.stream_user_turn(
+                thread_id="conversation-language-test",
+                user_id="user-language-test",
+                text="Please answer in Hindi.",
+                language="en-US",
+            )
+        ]
+
+        language_context = next(
+            message.content
+            for message in model.received
+            if message.role == "system" and "Speech recognition detected" in message.content
+        )
+        self.assertIn("input-language evidence", language_context)
+        self.assertIn("explicitly asks you to answer or speak", language_context)
+        self.assertIn("If no response language is explicitly requested", language_context)
+
     async def test_turn_streaming_saves_state_and_scopes_memory_by_user(self) -> None:
         model = FakeChatModel()
         memory = FakeLongTermMemory()

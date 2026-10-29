@@ -6,6 +6,7 @@ from collections.abc import AsyncIterator, Sequence
 from google import genai
 from google.genai import types
 
+from backend.llm.language import LANGUAGE_RESPONSE_POLICY
 from backend.llm.protocol import ChatMessage
 
 logger = logging.getLogger(__name__)
@@ -41,11 +42,9 @@ class GeminiChatModel:
         ]
         config = types.GenerateContentConfig(
             system_instruction=(
-                "You are a helpful multilingual voice assistant. Identify the language and writing "
-                "system of the user's latest message and reply entirely in that same language and "
-                "script. Never translate the user's message or switch to another language unless "
-                "the user explicitly requests translation. Follow any detected-language instruction "
-                "for the current turn exactly, even if earlier messages used another language. "
+                "You are a helpful multilingual voice assistant. "
+                + LANGUAGE_RESPONSE_POLICY
+                + " Never translate the user's message unless they ask you to. "
                 "Keep replies clear, warm, and concise so they are easy to follow when spoken aloud. "
                 "Use flowing conversational phrasing; avoid unnecessary full stops, ellipses, and "
                 "sentence fragments that create frequent pauses in spoken replies. "
