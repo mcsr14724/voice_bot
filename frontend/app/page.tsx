@@ -70,6 +70,8 @@ export default function HomePage() {
   const browserAudioFrameSentRef = useRef(false);
   const backendAudioReceivedRef = useRef(false);
   const microphoneSignalDetectedRef = useRef(false);
+  const lastMicrophoneRmsRef = useRef(0);
+  const lastMicrophoneLevelUiUpdateRef = useRef(0);
   const transcriptReceivedRef = useRef(false);
   const streamRef = useRef<MediaStream | null>(null);
   const contextRef = useRef<AudioContext | null>(null);
@@ -103,6 +105,26 @@ export default function HomePage() {
     audioAckTimeoutRef.current = null;
     microphoneSignalTimeoutRef.current = null;
     transcriptTimeoutRef.current = null;
+  };
+
+  const startTranscriptWatchdog = () => {
+    if (transcriptReceivedRef.current) return;
+    if (transcriptTimeoutRef.current !== null) window.clearTimeout(transcriptTimeoutRef.current);
+    updateVoiceDiagnostic("transcript", "Speech detected; waiting for Deepgram transcript");
+    transcriptTimeoutRef.current = window.setTimeout(() => {
+      if (transcriptReceivedRef.current || !recordingRef.current) return;
+      const microphoneRms = lastMicrophoneRmsRef.current;
+      if (microphoneRms < 0.008) {
+        updateVoiceDiagnostic(
+          "transcript",
+          `No transcript; microphone level is below speech threshold (RMS ${microphoneRms.toFixed(4)}; target 0.008)`,
+        );
+        setStatus("The microphone audio is reaching the backend, but its level is too low for reliable speech detection. Select the correct microphone and check its input volume and mute switch.");
+        return;
+      }
+      updateVoiceDiagnostic("transcript", "Speech detected, but Deepgram returned no transcript within 10 seconds");
+      setStatus("Speech was detected and audio reached Deepgram, but no transcript came back. Check the Deepgram language/model settings and account usage.");
+    }, 10_000);
   };
 
   useEffect(() => {
@@ -232,13 +254,15 @@ export default function HomePage() {
     recordingRef.current = false;
   };
 
-  async function startMicrophone(socket: WebSocket) {
+  async function startMicrophone(socket: WebSocket, architecture: VoiceArchitecture = voiceArchitecture) {
     if (recording || socket.readyState !== WebSocket.OPEN || !sessionReadyRef.current) return;
     setShowVoiceDiagnostics(true);
     let microphoneStream: MediaStream | null = null;
     let inputContext: AudioContext | null = null;
     clearVoiceWatchdogs();
     microphoneSignalDetectedRef.current = false;
+    lastMicrophoneRmsRef.current = 0;
+    lastMicrophoneLevelUiUpdateRef.current = 0;
     transcriptReceivedRef.current = false;
     setStatus("Microphone: requesting browser permission…");
     updateVoiceDiagnostic("microphone", "Requesting browser permission");
@@ -252,6 +276,9 @@ export default function HomePage() {
       await inputContext.audioWorklet.addModule("/audio/pcm-capture-processor.js");
       browserAudioFrameSentRef.current = false;
       backendAudioReceivedRef.current = false;
+      microphoneSignalDetectedRef.current = false;
+      lastMicrophoneRmsRef.current = 0;
+      transcriptReceivedRef.current = false;
       const source = inputContext.createMediaStreamSource(microphoneStream);
       const processor = new AudioWorkletNode(inputContext, "pcm-capture", {
         numberOfInputs: 1,
@@ -264,11 +291,21 @@ export default function HomePage() {
         speechEnded: boolean;
         rms: number;
       }>) => {
+        lastMicrophoneRmsRef.current = event.data.rms;
+        const now = Date.now();
+        if (now - lastMicrophoneLevelUiUpdateRef.current >= 300) {
+          lastMicrophoneLevelUiUpdateRef.current = now;
+          updateVoiceDiagnostic(
+            "microphone",
+            event.data.rms >= 0.008
+              ? `Speech-level audio detected (RMS ${event.data.rms.toFixed(4)})`
+              : `Low input level (RMS ${event.data.rms.toFixed(4)}; speech threshold 0.008)`,
+          );
+        }
         if (event.data.rms >= 0.008 && !microphoneSignalDetectedRef.current) {
           microphoneSignalDetectedRef.current = true;
           if (microphoneSignalTimeoutRef.current !== null) window.clearTimeout(microphoneSignalTimeoutRef.current);
           microphoneSignalTimeoutRef.current = null;
-          updateVoiceDiagnostic("microphone", "Microphone is capturing speech-level audio");
         }
         if (socket.readyState === WebSocket.OPEN) {
           try {
@@ -297,7 +334,10 @@ export default function HomePage() {
             setStatus("Audio streaming failed: the browser could not send microphone data over the WebSocket.");
           }
         }
-        if (event.data.speechStarted) holdPlaybackForSpeechCandidate();
+        if (event.data.speechStarted) {
+          holdPlaybackForSpeechCandidate();
+          if (architecture === "cascade") startTranscriptWatchdog();
+        }
         if (event.data.speechEnded) releasePlaybackAfterSpeechCandidate();
       };
       setStatus("Microphone is ready. Requesting an audio stream from the backend…");
@@ -415,7 +455,7 @@ export default function HomePage() {
         voiceStartPendingRef.current = true;
         if (existing.readyState === WebSocket.OPEN && sessionReadyRef.current) {
           voiceStartPendingRef.current = false;
-          void startMicrophone(existing);
+          void startMicrophone(existing, architecture);
         }
       }
       return;
@@ -473,7 +513,7 @@ export default function HomePage() {
           }
           if (voiceStartPendingRef.current) {
             voiceStartPendingRef.current = false;
-            void startMicrophone(socket);
+            void startMicrophone(socket, architecture);
           }
         }
         if (message.type === "audio.ready") {
@@ -499,17 +539,8 @@ export default function HomePage() {
         }
         if (message.type === "transcription.audio_forwarded") {
           updateVoiceDiagnostic("deepgram", "Deepgram received audio frames");
-          updateVoiceDiagnostic("transcript", "Audio forwarded; waiting for speech transcript");
-          setStatus("Deepgram is receiving audio. Waiting for a transcript…");
-          if (transcriptTimeoutRef.current !== null) window.clearTimeout(transcriptTimeoutRef.current);
-          if (!transcriptReceivedRef.current) {
-            transcriptTimeoutRef.current = window.setTimeout(() => {
-              if (!transcriptReceivedRef.current && recordingRef.current) {
-                updateVoiceDiagnostic("transcript", "No transcript received within 10 seconds");
-                setStatus("Audio reached Deepgram, but no transcript came back. Check your microphone input, Deepgram language/model settings, and Deepgram account usage.");
-              }
-            }, 10_000);
-          }
+          updateVoiceDiagnostic("transcript", "Audio forwarded; waiting for speech");
+          setStatus("Deepgram is receiving microphone audio. Speak clearly and pause briefly to see the transcript.");
         }
         if (message.type === "transcript") {
           const text = message.text?.trim() ?? "";
@@ -535,7 +566,10 @@ export default function HomePage() {
           if (message.speech_final) setStatus("Thinking of a reply…");
           else if (recordingRef.current) setStatus("Listening…");
         }
-        if (message.type === "speech.started") holdPlaybackForSpeechCandidate();
+        if (message.type === "speech.started") {
+          holdPlaybackForSpeechCandidate();
+          if (architecture === "cascade") startTranscriptWatchdog();
+        }
         if (message.type === "speech.ended") {
           releasePlaybackAfterSpeechCandidate();
           if (pendingTranscriptRef.current.length) {
