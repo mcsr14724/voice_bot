@@ -734,12 +734,14 @@ export default function HomePage() {
       }
     };
     socket.onerror = () => {
+      if (socketRef.current !== socket) return;
       const errorMessage = "WebSocket transport error. Check that the backend is online and allows this frontend origin.";
       updateVoiceDiagnostic("websocket", "Connection error");
       setStatus(errorMessage);
       setError(errorMessage);
     };
     socket.onclose = (event: CloseEvent) => {
+      if (socketRef.current !== socket) return;
       socketRef.current = null;
       sessionReadyRef.current = false;
       voiceStartPendingRef.current = false;
@@ -782,6 +784,7 @@ export default function HomePage() {
     clearVoiceWatchdogs();
     setShowVoiceDiagnostics(false);
     setConnected(false);
+    voiceStartPendingRef.current = false;
     setVoiceMode(false);
     voiceModeRef.current = false;
     setAssistantSpeaking(false);

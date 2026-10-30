@@ -56,6 +56,7 @@ class VoiceSession:
     user_id: str
     websocket: WebSocket
     session_id: str = field(default_factory=lambda: str(uuid4()))
+    connection_id: str = field(default_factory=lambda: str(uuid4()))
     status: SessionStatus = SessionStatus.CONNECTING
     _close_lock: asyncio.Lock = field(default_factory=asyncio.Lock, repr=False)
     interruption: InterruptionController = field(default_factory=InterruptionController, init=False)
@@ -622,13 +623,13 @@ class VoiceSessionManager:
 
     async def register(self, session: VoiceSession) -> None:
         async with self._lock:
-            if session.session_id in self._sessions:
-                raise ValueError("A voice session with this identifier is already registered")
-            self._sessions[session.session_id] = session
+            if session.connection_id in self._sessions:
+                raise ValueError("A voice connection with this identifier is already registered")
+            self._sessions[session.connection_id] = session
 
-    async def unregister(self, session_id: str) -> None:
+    async def unregister(self, connection_id: str) -> None:
         async with self._lock:
-            self._sessions.pop(session_id, None)
+            self._sessions.pop(connection_id, None)
 
     async def active_count(self) -> int:
         async with self._lock:

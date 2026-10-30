@@ -80,4 +80,4 @@ async def voice_websocket(websocket: WebSocket) -> None:
     try:
         await session.run(accept_websocket=False)
     finally:
-        await manager.unregister(session.session_id)
+        await manager.unregister(session.connection_id)

@@ -128,6 +128,28 @@ class VoiceSessionTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(await manager.active_count(), 0)
         websocket.close.assert_awaited_once_with(code=1012, reason="Server shutting down")
 
+    async def test_manager_allows_reconnecting_to_the_same_conversation(self) -> None:
+        manager = VoiceSessionManager()
+        conversation_id = "conversation-1"
+        previous = VoiceSession(
+            user_id="user-1",
+            websocket=MagicMock(),
+            session_id=conversation_id,
+        )
+        current = VoiceSession(
+            user_id="user-1",
+            websocket=MagicMock(),
+            session_id=conversation_id,
+        )
+
+        await manager.register(previous)
+        await manager.register(current)
+
+        self.assertNotEqual(previous.connection_id, current.connection_id)
+        self.assertEqual(await manager.active_count(), 2)
+        await manager.unregister(previous.connection_id)
+        self.assertEqual(await manager.active_count(), 1)
+
 
 if __name__ == "__main__":
     unittest.main()
