@@ -4,8 +4,8 @@ import unittest
 
 from langgraph.checkpoint.memory import InMemorySaver
 
-from backend.agent.conversation import ConversationOrchestrator, build_conversation_graph
-from backend.llm.protocol import ChatMessage
+from backend.core.agent.conversation import ConversationOrchestrator, build_conversation_graph
+from backend.core.llm.protocol import ChatMessage
 
 
 class FakeChatModel:

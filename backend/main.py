@@ -14,20 +14,20 @@ from backend.core.config import get_settings
 from backend.core.exceptions import ApplicationError, application_error_handler, unexpected_error_handler
 from backend.core.logging import configure_logging
 from backend.core.middleware import RequestObservabilityMiddleware
-from backend.agent.conversation import ConversationOrchestrator, build_conversation_graph
-from backend.database.mongodb import MongoDatabase
-from backend.database.postgres import PostgresDatabase
-from backend.database.repositories.user import UserRepository
-from backend.database.repositories.conversation import ConversationRepository
-from backend.llm.gemini import GeminiChatModel
-from backend.memory.mem0 import Mem0LongTermMemory
-from backend.tts.azure import AzureSpeechSynthesizer
+from backend.core.agent.conversation import ConversationOrchestrator, build_conversation_graph
+from backend.core.database.mongodb import MongoDatabase
+from backend.core.database.postgres import PostgresDatabase
+from backend.core.database.repositories.user import UserRepository
+from backend.core.database.repositories.conversation import ConversationRepository
+from backend.core.llm.gemini import GeminiChatModel
+from backend.core.memory.mem0 import Mem0LongTermMemory
+from backend.core.tts.azure import AzureSpeechSynthesizer
 from backend.routes.auth import router as auth_router
 from backend.routes.conversations import router as conversations_router
 from backend.routes.health import router as health_router
-from backend.websocket.voice import voice_websocket
-from backend.voice.session import VoiceSessionManager
-from backend.voice.gemini_live import GeminiLiveVoice
+from backend.core.websocket.voice import voice_websocket
+from backend.core.voice.session import VoiceSessionManager
+from backend.core.voice.gemini_live import GeminiLiveVoice
 
 
 def create_app() -> FastAPI:

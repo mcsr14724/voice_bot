@@ -8,9 +8,9 @@ from typing import Any
 from google import genai
 from google.genai import types
 
-from backend.llm.language import LANGUAGE_RESPONSE_POLICY
-from backend.memory.protocol import LongTermMemory
-from backend.voice.audio import AudioFrame, AudioStreamEnd
+from backend.core.llm.language import LANGUAGE_RESPONSE_POLICY
+from backend.core.memory.protocol import LongTermMemory
+from backend.core.voice.audio import AudioFrame, AudioStreamEnd
 
 logger = logging.getLogger(__name__)
 EventSender = Callable[[dict[str, Any]], Awaitable[None]]

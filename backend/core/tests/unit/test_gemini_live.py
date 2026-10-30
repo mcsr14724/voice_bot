@@ -5,7 +5,7 @@ from types import SimpleNamespace
 import unittest
 from unittest.mock import AsyncMock
 
-from backend.voice.gemini_live import GeminiLiveVoice
+from backend.core.voice.gemini_live import GeminiLiveVoice
 
 
 class FakeLiveConnection:

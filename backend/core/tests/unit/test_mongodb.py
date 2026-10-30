@@ -6,7 +6,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 from pymongo.errors import ServerSelectionTimeoutError
 
 from backend.core.config import Settings
-from backend.database.mongodb import MongoDatabase
+from backend.core.database.mongodb import MongoDatabase
 
 
 def configured_settings() -> Settings:
@@ -22,7 +22,7 @@ class MongoDatabaseTests(unittest.IsolatedAsyncioTestCase):
         client.admin.command = AsyncMock()
         client.close = AsyncMock()
 
-        with patch("backend.database.mongodb.AsyncMongoClient", return_value=client) as client_factory:
+        with patch("backend.core.database.mongodb.AsyncMongoClient", return_value=client) as client_factory:
             database = MongoDatabase(configured_settings())
             await database.connect()
             await database.close()
@@ -38,7 +38,7 @@ class MongoDatabaseTests(unittest.IsolatedAsyncioTestCase):
         )
         client.close = AsyncMock()
 
-        with patch("backend.database.mongodb.AsyncMongoClient", return_value=client):
+        with patch("backend.core.database.mongodb.AsyncMongoClient", return_value=client):
             database = MongoDatabase(configured_settings())
             with self.assertRaisesRegex(RuntimeError, "MongoDB connection failed") as raised:
                 await database.connect()

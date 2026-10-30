@@ -13,7 +13,11 @@ A modular monolith for browser-based, real-time voice conversations with streami
 ## Repository map
 
 - `frontend/`: browser application
-- `backend/`: FastAPI modular monolith and technology adapters
+- `backend/`: FastAPI application and HTTP routes
+- `backend/core/`: backend feature packages and tests
+- `backend/core/agent/`, `database/`, `llm/`, `memory/`, `tts/`, `voice/`, `websocket/`: feature packages
+- `backend/core/stt/transcription.py`: Deepgram streaming speech-to-text adapter
+- `backend/core/tests/unit/`: backend unit tests
 - `docs/decisions/`: architecture decision records
 - `PROJECT_CONTEXT.md`: current implementation state and architectural constraints
 - `IMPLEMENTATION_PLAN.md`: ordered delivery plan
@@ -52,7 +56,7 @@ fastapi dev backend\main.py
 
 `fastapi dev` sets `FASTAPI_ENV=development`, but the application uses the separate `VOICE_BOT_ENVIRONMENT` setting. Production must keep HTTPS frontend origins.
 
-The liveness endpoint is `http://localhost:8000/api/v1/health`; readiness is reported at `/api/v1/ready` and checks PostgreSQL and MongoDB. HTTP responses include a generated `X-Request-ID`, and request logs contain method, path, status, and elapsed time without query strings or request bodies. Run backend unit tests with `py -m unittest discover -s backend\tests\unit -v`.
+The liveness endpoint is `http://localhost:8000/api/v1/health`; readiness is reported at `/api/v1/ready` and checks PostgreSQL and MongoDB. HTTP responses include a generated `X-Request-ID`, and request logs contain method, path, status, and elapsed time without query strings or request bodies. Run backend unit tests with `py -m unittest discover -s backend\core\tests\unit -v`.
 
 Start the browser client in a second terminal:
 

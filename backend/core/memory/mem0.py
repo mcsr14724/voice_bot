@@ -4,7 +4,7 @@ import asyncio
 from collections.abc import Sequence
 from mem0 import MemoryClient
 
-from backend.llm.protocol import ChatMessage
+from backend.core.llm.protocol import ChatMessage
 
 
 class Mem0LongTermMemory:
@@ -46,4 +46,3 @@ class Mem0LongTermMemory:
         close = getattr(self._client, "close", None)
         if callable(close):
             await asyncio.to_thread(close)
-

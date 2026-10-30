@@ -7,8 +7,8 @@ from unittest.mock import patch
 
 from websockets.exceptions import InvalidStatus
 
-from backend.voice.audio import AudioFrame, AudioStreamEnd
-from backend.voice.transcription import DeepgramTranscriber
+from backend.core.voice.audio import AudioFrame, AudioStreamEnd
+from backend.core.stt.transcription import DeepgramTranscriber
 
 
 class DeepgramTranscriberTests(unittest.IsolatedAsyncioTestCase):
@@ -83,7 +83,7 @@ class DeepgramTranscriberTests(unittest.IsolatedAsyncioTestCase):
         async def emit(event: dict) -> None:
             events.append(event)
 
-        with patch("backend.voice.transcription.connect", return_value=Connection()) as connector:
+        with patch("backend.core.stt.transcription.connect", return_value=Connection()) as connector:
             await DeepgramTranscriber("test-key").consume(frames, emit)
 
         self.assertIn("model=nova-3", connector.call_args.args[0])

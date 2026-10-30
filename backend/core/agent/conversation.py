@@ -11,9 +11,9 @@ from langgraph.checkpoint.base import BaseCheckpointSaver
 from langgraph.config import get_stream_writer
 from langgraph.graph import END, START, MessagesState, StateGraph
 
-from backend.llm.language import LANGUAGE_RESPONSE_POLICY
-from backend.llm.protocol import ChatMessage, ChatModel
-from backend.memory.protocol import LongTermMemory
+from backend.core.llm.language import LANGUAGE_RESPONSE_POLICY
+from backend.core.llm.protocol import ChatMessage, ChatModel
+from backend.core.memory.protocol import LongTermMemory
 
 logger = logging.getLogger(__name__)
 

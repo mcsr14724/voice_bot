@@ -2,8 +2,8 @@
 
 import unittest
 
-from backend.voice.audio import AudioFrame
-from backend.voice.turn_detection import EnergyTurnDetector
+from backend.core.voice.audio import AudioFrame
+from backend.core.voice.turn_detection import EnergyTurnDetector
 
 
 class EnergyTurnDetectorTests(unittest.TestCase):

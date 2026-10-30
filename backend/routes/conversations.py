@@ -7,7 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from pydantic import BaseModel
 
 from backend.core.exceptions import ApplicationError
-from backend.database.repositories.conversation import ConversationRepository
+from backend.core.database.repositories.conversation import ConversationRepository
 from backend.models.auth import UserResponse
 from backend.routes.auth import get_current_user
 
@@ -83,4 +83,3 @@ async def delete_conversation(
     if not deleted:
         raise HTTPException(status_code=404, detail="Conversation not found")
     return Response(status_code=status.HTTP_204_NO_CONTENT)
-

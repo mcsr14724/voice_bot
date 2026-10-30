@@ -7,7 +7,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import asyncpg
 
 from backend.core.config import Settings
-from backend.database.postgres import PostgresDatabase
+from backend.core.database.postgres import PostgresDatabase
 
 
 class AsyncContext:
@@ -46,7 +46,7 @@ class PostgresDatabaseTests(unittest.IsolatedAsyncioTestCase):
         pool.close = AsyncMock()
         database = PostgresDatabase(configured_settings())
 
-        with patch("backend.database.postgres.asyncpg.create_pool", new=AsyncMock(return_value=pool)) as create_pool:
+        with patch("backend.core.database.postgres.asyncpg.create_pool", new=AsyncMock(return_value=pool)) as create_pool:
             await database.connect()
             await database.close()
 
@@ -58,7 +58,7 @@ class PostgresDatabaseTests(unittest.IsolatedAsyncioTestCase):
         database = PostgresDatabase(configured_settings())
         error = asyncpg.InvalidPasswordError("password=do-not-log")
 
-        with patch("backend.database.postgres.asyncpg.create_pool", new=AsyncMock(side_effect=error)):
+        with patch("backend.core.database.postgres.asyncpg.create_pool", new=AsyncMock(side_effect=error)):
             with self.assertRaisesRegex(
                 RuntimeError,
                 "PostgreSQL connection failed; check the configured host, network access, and DSN",

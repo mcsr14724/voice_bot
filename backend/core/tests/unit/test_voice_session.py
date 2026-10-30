@@ -4,7 +4,7 @@ import unittest
 import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from backend.voice.session import SessionStatus, VoiceSession, VoiceSessionManager
+from backend.core.voice.session import SessionStatus, VoiceSession, VoiceSessionManager
 
 
 class VoiceSessionTests(unittest.IsolatedAsyncioTestCase):
@@ -73,7 +73,7 @@ class VoiceSessionTests(unittest.IsolatedAsyncioTestCase):
         websocket.send_json = AsyncMock(side_effect=send_json)
         websocket.receive = receive
         session = VoiceSession(user_id="user-1", websocket=websocket)
-        with patch("backend.voice.session.get_settings", return_value=MagicMock(deepgram_api_key=None)):
+        with patch("backend.core.voice.session.get_settings", return_value=MagicMock(deepgram_api_key=None)):
             run_task = asyncio.create_task(session.run())
             await asyncio.wait_for(audio_ended.wait(), timeout=1)
             await asyncio.sleep(0)
@@ -108,7 +108,7 @@ class VoiceSessionTests(unittest.IsolatedAsyncioTestCase):
         websocket.close = AsyncMock()
         session = VoiceSession(user_id="user-1", websocket=websocket)
 
-        with patch("backend.voice.session.DeepgramTranscriber") as transcriber:
+        with patch("backend.core.voice.session.DeepgramTranscriber") as transcriber:
             await session.run()
 
         transcriber.assert_not_called()

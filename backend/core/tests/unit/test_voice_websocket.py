@@ -8,8 +8,8 @@ from fastapi.testclient import TestClient
 
 from backend.core.config import Settings
 from backend.core.security import create_access_token
-from backend.websocket.voice import voice_websocket
-from backend.voice.session import VoiceSessionManager
+from backend.core.websocket.voice import voice_websocket
+from backend.core.voice.session import VoiceSessionManager
 
 
 class VoiceWebSocketTests(unittest.IsolatedAsyncioTestCase):
@@ -43,7 +43,7 @@ class VoiceWebSocketTests(unittest.IsolatedAsyncioTestCase):
         websocket.app.state.user_repository = repository
 
         with (
-            patch("backend.websocket.voice.get_settings", return_value=settings),
+            patch("backend.core.websocket.voice.get_settings", return_value=settings),
         ):
             await voice_websocket(websocket)
 
@@ -84,7 +84,7 @@ class VoiceWebSocketASGITests(unittest.TestCase):
         repository.find_by_id = AsyncMock(return_value={"_id": "user-id"})
 
         with (
-            patch("backend.websocket.voice.get_settings", return_value=settings),
+            patch("backend.core.websocket.voice.get_settings", return_value=settings),
             TestClient(app) as client,
         ):
             with client.websocket_connect(

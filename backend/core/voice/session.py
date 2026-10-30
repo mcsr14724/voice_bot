@@ -20,16 +20,16 @@ from backend.models.websocket import (
     ClientTextMessage,
 )
 from backend.core.config import get_settings
-from backend.llm.protocol import ChatMessage
-from backend.memory.protocol import LongTermMemory
-from backend.voice.audio import AudioFormat, AudioFrame, AudioStreamEnd
-from backend.voice.interruption import InterruptionController
-from backend.voice.turn_detection import EnergyTurnDetector
-from backend.voice.transcription import DeepgramTranscriber
-from backend.agent.conversation import ConversationOrchestrator
-from backend.tts.protocol import SpeechSynthesizer
-from backend.database.repositories.conversation import ConversationRepository
-from backend.voice.gemini_live import GeminiLiveVoice
+from backend.core.llm.protocol import ChatMessage
+from backend.core.memory.protocol import LongTermMemory
+from backend.core.voice.audio import AudioFormat, AudioFrame, AudioStreamEnd
+from backend.core.voice.interruption import InterruptionController
+from backend.core.voice.turn_detection import EnergyTurnDetector
+from backend.core.stt.transcription import DeepgramTranscriber
+from backend.core.agent.conversation import ConversationOrchestrator
+from backend.core.tts.protocol import SpeechSynthesizer
+from backend.core.database.repositories.conversation import ConversationRepository
+from backend.core.voice.gemini_live import GeminiLiveVoice
 
 logger = logging.getLogger(__name__)
 message_adapter = TypeAdapter(ClientMessage)

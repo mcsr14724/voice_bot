@@ -15,7 +15,7 @@ from backend.core.security import (
     validate_token_configuration,
     verify_password,
 )
-from backend.database.repositories.user import UserRepository
+from backend.core.database.repositories.user import UserRepository
 from backend.models.auth import LoginRequest, RegisterRequest, TokenResponse, UserResponse
 
 router = APIRouter(prefix="/auth", tags=["auth"])

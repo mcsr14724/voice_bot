@@ -6,7 +6,7 @@ from unittest.mock import AsyncMock, MagicMock
 import asyncpg
 
 from backend.core.exceptions import ApplicationError
-from backend.database.repositories.user import UserRepository
+from backend.core.database.repositories.user import UserRepository
 
 
 class UserRepositoryTests(unittest.IsolatedAsyncioTestCase):

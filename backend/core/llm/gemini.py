@@ -6,8 +6,8 @@ from collections.abc import AsyncIterator, Sequence
 from google import genai
 from google.genai import types
 
-from backend.llm.language import LANGUAGE_RESPONSE_POLICY
-from backend.llm.protocol import ChatMessage
+from backend.core.llm.language import LANGUAGE_RESPONSE_POLICY
+from backend.core.llm.protocol import ChatMessage
 
 logger = logging.getLogger(__name__)
 

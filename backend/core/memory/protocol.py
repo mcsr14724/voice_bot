@@ -3,7 +3,7 @@
 from collections.abc import Sequence
 from typing import Protocol
 
-from backend.llm.protocol import ChatMessage
+from backend.core.llm.protocol import ChatMessage
 
 
 class LongTermMemory(Protocol):
@@ -14,4 +14,3 @@ class LongTermMemory(Protocol):
 
     async def add(self, *, user_id: str, messages: Sequence[ChatMessage]) -> None:
         ...
-

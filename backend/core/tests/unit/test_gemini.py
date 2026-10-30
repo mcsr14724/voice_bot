@@ -3,8 +3,8 @@
 from types import SimpleNamespace
 import unittest
 
-from backend.llm.gemini import GeminiChatModel
-from backend.llm.protocol import ChatMessage
+from backend.core.llm.gemini import GeminiChatModel
+from backend.core.llm.protocol import ChatMessage
 
 
 class FakeModels:

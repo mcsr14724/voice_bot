@@ -8,9 +8,9 @@ from pydantic import ValidationError
 
 from backend.core.config import get_settings
 from backend.core.security import decode_access_token
-from backend.database.repositories.user import UserRepository
+from backend.core.database.repositories.user import UserRepository
 from backend.models.websocket import ClientAuthMessage
-from backend.voice.session import VoiceSession, VoiceSessionManager
+from backend.core.voice.session import VoiceSession, VoiceSessionManager
 
 
 async def voice_websocket(websocket: WebSocket) -> None:

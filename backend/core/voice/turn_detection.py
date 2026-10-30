@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from math import isqrt
 from struct import iter_unpack
 
-from backend.voice.audio import AudioFrame
+from backend.core.voice.audio import AudioFrame
 
 
 @dataclass(frozen=True, slots=True)

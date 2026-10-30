@@ -8,7 +8,7 @@ from urllib.parse import urlencode
 from websockets.asyncio.client import connect
 from websockets.exceptions import InvalidStatus
 
-from backend.voice.audio import AudioFrame, AudioStreamEnd
+from backend.core.voice.audio import AudioFrame, AudioStreamEnd
 
 TranscriptEmitter = Callable[[dict[str, Any]], Awaitable[None]]
 AudioQueue = asyncio.Queue[AudioFrame | AudioStreamEnd | None]
