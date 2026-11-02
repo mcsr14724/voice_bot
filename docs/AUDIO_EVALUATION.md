@@ -1,6 +1,6 @@
 # STT and TTS dataset evaluation
 
-The backend provides authenticated development endpoints for evaluating paired WAV and transcript files. They are disabled by default and production settings reject enabling them.
+The backend provides authenticated endpoints for evaluating paired WAV and transcript files. They are disabled by default in every environment; set `VOICE_BOT_ENABLE_AUDIO_EVALUATION=true` to enable them, including in production.
 
 ## Enable locally
 
@@ -60,4 +60,4 @@ WER/CER validate **recognized content**, not voice naturalness, emotion, pronunc
 
 ## Limits and safety
 
-These endpoints send uploaded reference and generated audio to configured Deepgram and Azure Speech services. Use synthetic or consented recordings only. Endpoints require a valid authenticated user and `VOICE_BOT_ENABLE_AUDIO_EVALUATION=true`; they return 404 when disabled and cannot be enabled in production. Keep the feature off outside local evaluation.
+These endpoints send uploaded reference and generated audio to configured Deepgram and Azure Speech services. Use synthetic or consented recordings only. Endpoints require a valid authenticated user and `VOICE_BOT_ENABLE_AUDIO_EVALUATION=true`; they return 404 when the flag is false. Enabling the flag in production allows authenticated accounts to use the configured provider credentials and incur provider usage. Keep the flag off when evaluation is not needed.

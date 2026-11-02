@@ -223,7 +223,7 @@ export default function AudioEvaluationPanel({ token }: { token: string }) {
         if (controller.signal.aborted) break;
         const message = cause instanceof Error ? cause.message : "Evaluation failed.";
         if (message === "Audio evaluation is not enabled") {
-          setError(`${message}. Enable VOICE_BOT_ENABLE_AUDIO_EVALUATION and restart the development backend.`);
+          setError(`${message}. Set VOICE_BOT_ENABLE_AUDIO_EVALUATION=true in the backend environment and restart/redeploy it.`);
           break;
         }
         setResults((current) => ({
@@ -243,7 +243,7 @@ export default function AudioEvaluationPanel({ token }: { token: string }) {
     <section className="evaluation-panel">
       <header className="evaluation-header">
         <div>
-          <p className="eyebrow">LOCAL DATASET TESTING</p>
+          <p className="eyebrow">DATASET TESTING</p>
           <h1>Speech evaluation</h1>
           <p>Upload a dataset folder containing matching WAV audio and TXT transcripts.</p>
         </div>

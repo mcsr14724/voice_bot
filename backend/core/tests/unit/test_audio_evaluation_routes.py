@@ -84,6 +84,35 @@ class AudioEvaluationRouteTests(unittest.TestCase):
         self.assertEqual(result["corpus"]["word_error_rate"], 0)
         self.assertEqual(result["sample"]["recognized_transcript"], "Hello world")
 
+    def test_stt_is_available_in_production_when_explicitly_enabled(self) -> None:
+        production_settings = Settings(
+            _env_file=None,
+            environment="production",
+            enable_audio_evaluation=True,
+            frontend_origins=["https://frontend.example.com"],
+            secret_key="x" * 32,
+            deepgram_api_key="test-key",
+        )
+        from backend.core.config import get_settings
+
+        self.app.dependency_overrides[get_settings] = lambda: production_settings
+        with (
+            patch("backend.routes.audio_evaluation._get_transcriber", return_value=object()),
+            patch(
+                "backend.routes.audio_evaluation._transcribe_wav",
+                new=AsyncMock(return_value="Hello world"),
+            ),
+        ):
+            response = self.client.post(
+                "/api/v1/audio-evaluation/stt",
+                files=[
+                    ("audio_file", ("sample.wav", b"wav", "audio/wav")),
+                    ("transcript_file", ("sample.txt", b"Hello, world!", "text/plain")),
+                ],
+            )
+
+        self.assertEqual(response.status_code, 200)
+
     def test_stt_rejects_files_with_unmatched_stems(self) -> None:
         response = self.client.post(
             "/api/v1/audio-evaluation/stt",

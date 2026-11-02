@@ -46,7 +46,7 @@ DEEPGRAM_ERROR_CODES = {
 
 
 def _check_evaluation_enabled(settings: Settings) -> None:
-    if not settings.enable_audio_evaluation or settings.environment == "production":
+    if not settings.enable_audio_evaluation:
         raise HTTPException(status_code=404, detail="Audio evaluation is not enabled")
 
 

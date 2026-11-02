@@ -6,7 +6,6 @@ import unittest
 import wave
 
 from fastapi import HTTPException
-from pydantic import ValidationError
 
 from backend.core.config import Settings
 from backend.core.stt.evaluation import (
@@ -44,19 +43,19 @@ class AudioEvaluationTests(unittest.TestCase):
         self.assertEqual(incorrect.word_error_rate, 0.75)
         self.assertGreater(incorrect.character_error_rate, 0)
 
-    def test_audio_evaluation_is_disabled_by_default_and_rejected_in_production(self) -> None:
+    def test_audio_evaluation_is_disabled_by_default_and_can_be_enabled_in_production(self) -> None:
         with self.assertRaises(HTTPException) as raised:
             _check_evaluation_enabled(Settings(_env_file=None))
         self.assertEqual(raised.exception.status_code, 404)
 
-        with self.assertRaises(ValidationError):
-            Settings(
-                _env_file=None,
-                environment="production",
-                enable_audio_evaluation=True,
-                frontend_origins=["https://frontend.example.com"],
-                secret_key="x" * 32,
-            )
+        settings = Settings(
+            _env_file=None,
+            environment="production",
+            enable_audio_evaluation=True,
+            frontend_origins=["https://frontend.example.com"],
+            secret_key="x" * 32,
+        )
+        _check_evaluation_enabled(settings)
 
     def test_wav_decoder_downmixes_and_resamples_stereo_audio(self) -> None:
         wav_bytes = make_wav(sample_rate=8_000, channels=2, frames=800)
