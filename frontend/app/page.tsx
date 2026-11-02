@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, KeyboardEvent, useEffect, useRef, useState } from "react";
+import AudioEvaluationPanel from "@/components/audio-evaluation-panel";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000/api/v1";
 const socketUrl = new URL(API_URL);
@@ -28,6 +29,7 @@ type ChatMessage = { id: string; role: "user" | "assistant"; content: string; in
 type ConversationSummary = { id: string; created_at: string; updated_at: string; preview: string };
 type ConversationDetail = ConversationSummary & { messages: { role: string; content: string }[] };
 type VoiceArchitecture = "cascade" | "gemini_live";
+type WorkspaceMode = "chat" | "evaluation";
 type AudioInputDevice = { deviceId: string; label: string };
 type VoiceDiagnosticKey = "websocket" | "microphone" | "audioStream" | "deepgram" | "transcript";
 type VoiceDiagnostics = Record<VoiceDiagnosticKey, string>;
@@ -64,6 +66,7 @@ export default function HomePage() {
   const [loadingHistory, setLoadingHistory] = useState(false);
   const [error, setError] = useState("");
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [workspaceMode, setWorkspaceMode] = useState<WorkspaceMode>("chat");
 
   const socketRef = useRef<WebSocket | null>(null);
   const sessionReadyRef = useRef(false);
@@ -998,6 +1001,23 @@ export default function HomePage() {
           >‹</button>
         </div>
         <button className="new-chat-button" onClick={startNewChat}><span>＋</span> New chat</button>
+        <nav className="workspace-nav" aria-label="Workspace">
+          <button
+            type="button"
+            className={workspaceMode === "chat" ? "workspace-nav-selected" : ""}
+            aria-current={workspaceMode === "chat" ? "page" : undefined}
+            onClick={() => setWorkspaceMode("chat")}
+          >Chat</button>
+          <button
+            type="button"
+            className={workspaceMode === "evaluation" ? "workspace-nav-selected" : ""}
+            aria-current={workspaceMode === "evaluation" ? "page" : undefined}
+            onClick={() => {
+              if (socketRef.current) disconnect();
+              setWorkspaceMode("evaluation");
+            }}
+          >Speech evaluation</button>
+        </nav>
         <div className="history-label">RECENT</div>
         <div className="sidebar-history">
           {loadingHistory && <p className="history-note">Loading chats…</p>}
@@ -1023,6 +1043,9 @@ export default function HomePage() {
         <div className="sidebar-bottom"><div className="profile-avatar">{email.slice(0, 1).toUpperCase()}</div><div className="profile-info"><span>{email}</span><small>Personal workspace</small></div><button className="icon-button logout-button" onClick={logout} aria-label="Sign out" title="Sign out">↗</button></div>
       </aside>
 
+      {workspaceMode === "evaluation" ? (
+        <AudioEvaluationPanel token={token} />
+      ) : (
       <section className="conversation-panel">
         <header className="chat-header">
           <div className="mobile-brand"><button className="icon-button mobile-menu" onClick={() => setSidebarOpen((open) => !open)} aria-label={sidebarOpen ? "Collapse chat history" : "Expand chat history"} aria-controls="chat-history-sidebar" aria-expanded={sidebarOpen}>☰</button><span className="brand-mark">v</span> vox<span className="brand-period">.</span></div>
@@ -1128,6 +1151,7 @@ export default function HomePage() {
           <p className="composer-hint">{voiceMode ? "Vox listens continuously. Pause to get a reply, or speak over it to jump in." : "Enter to send · Shift + Enter for a new line"}</p>
         </div>
       </section>
+      )}
     </main>
   );
 }

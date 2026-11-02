@@ -22,6 +22,7 @@ from backend.core.database.repositories.conversation import ConversationReposito
 from backend.core.llm.gemini import GeminiChatModel
 from backend.core.memory.mem0 import Mem0LongTermMemory
 from backend.core.tts.azure import AzureSpeechSynthesizer
+from backend.routes.audio_evaluation import router as audio_evaluation_router
 from backend.routes.auth import router as auth_router
 from backend.routes.conversations import router as conversations_router
 from backend.routes.health import router as health_router
@@ -146,6 +147,7 @@ def create_app() -> FastAPI:
     app.add_exception_handler(ApplicationError, application_error_handler)
     app.add_exception_handler(Exception, unexpected_error_handler)
     app.include_router(auth_router, prefix=settings.api_v1_prefix)
+    app.include_router(audio_evaluation_router, prefix=settings.api_v1_prefix)
     app.include_router(conversations_router, prefix=settings.api_v1_prefix)
     app.include_router(health_router, prefix=settings.api_v1_prefix)
     app.add_api_websocket_route(f"{settings.api_v1_prefix}/ws/voice", voice_websocket)

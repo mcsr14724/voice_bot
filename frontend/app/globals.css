@@ -63,6 +63,9 @@ button:focus-visible, input:focus-visible, textarea:focus-visible { outline: 2px
 .new-chat-button { height: 42px; padding: 0 12px; display: flex; align-items: center; gap: 10px; border: 1px solid rgba(214,243,106,.22); border-radius: 9px; background: var(--lime-soft); color: #e5efc7; text-align: left; font-size: 12px; }
 .new-chat-button:hover { background: rgba(214,243,106,.17); }
 .new-chat-button span { color: var(--lime); font-size: 18px; }
+.workspace-nav { display: grid; gap: 3px; margin-top: 12px; }
+.workspace-nav button { min-height: 36px; padding: 0 11px; border: 1px solid transparent; border-radius: 7px; background: transparent; color: #aeb1a6; text-align: left; font-size: 11px; }
+.workspace-nav button:hover, .workspace-nav button.workspace-nav-selected { border-color: rgba(214,243,106,.16); background: rgba(214,243,106,.08); color: #e5efc7; }
 .history-label { margin: 29px 9px 11px; color: var(--subtle); font: 9px "DM Mono", monospace; letter-spacing: .13em; }
 .sidebar-history { display: flex; flex-direction: column; gap: 3px; overflow-y: auto; }
 .history-note { margin: 4px 9px; color: var(--subtle); font-size: 11px; line-height: 1.55; }
@@ -154,6 +157,39 @@ button:focus-visible, input:focus-visible, textarea:focus-visible { outline: 2px
 .composer-hint { margin: 9px 0 0; color: #70746a; text-align: center; font-size: 9px; }
 .chat-error { margin: 0 0 4px; text-align: center; }
 
+.visually-hidden { position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+.evaluation-panel { min-width: 0; min-height: 0; display: flex; flex: 1; flex-direction: column; overflow: auto; padding: 34px clamp(18px, 5vw, 64px); }
+.evaluation-header { width: min(100%, 980px); margin: 0 auto; display: flex; align-items: center; justify-content: space-between; gap: 20px; }
+.evaluation-header h1 { margin: 8px 0 7px; font: 600 29px/1.2 Manrope, sans-serif; letter-spacing: -.045em; }
+.evaluation-header p:last-child { margin: 0; color: var(--muted); font-size: 12px; }
+.evaluation-select-button, .evaluation-actions button { min-height: 38px; padding: 0 14px; border: 1px solid rgba(214,243,106,.24); border-radius: 8px; background: var(--lime-soft); color: #e5efc7; font-size: 11px; font-weight: 600; }
+.evaluation-select-button:hover, .evaluation-actions button:hover:not(:disabled) { background: rgba(214,243,106,.2); }
+.evaluation-select-button:disabled, .evaluation-actions button:disabled { cursor: wait; opacity: .5; }
+.evaluation-note, .evaluation-toolbar, .evaluation-progress, .evaluation-results { width: min(100%, 980px); margin-right: auto; margin-left: auto; }
+.evaluation-note { margin-top: 28px; padding: 14px 16px; display: flex; flex-direction: column; gap: 5px; border: 1px solid var(--line); border-radius: 9px; background: rgba(255,255,255,.025); color: var(--muted); font-size: 11px; line-height: 1.5; }
+.evaluation-note strong { color: #e0e2d7; }
+.evaluation-toolbar { margin-top: 24px; display: flex; align-items: center; justify-content: space-between; gap: 14px; }
+.evaluation-toolbar p { color: var(--muted); font-size: 11px; }
+.evaluation-toolbar p strong { color: var(--ink); }
+.evaluation-toolbar p span { color: var(--subtle); }
+.evaluation-actions { display: flex; flex-wrap: wrap; gap: 7px; }
+.evaluation-actions .evaluation-cancel { border-color: rgba(255,157,135,.25); background: rgba(255,157,135,.08); color: #ffb09d; }
+.evaluation-progress { color: #c4d88a; font: 10px "DM Mono", monospace; }
+.evaluation-results { display: grid; gap: 12px; padding-bottom: 32px; }
+.evaluation-result { padding: 16px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); }
+.evaluation-result-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.evaluation-result-heading h2 { margin: 0 0 5px; font-size: 13px; font-weight: 600; }
+.evaluation-result-heading span, .evaluation-size { color: var(--subtle); font-size: 10px; }
+.evaluation-reference { margin: 14px 0 0; display: flex; gap: 8px; color: var(--muted); font-size: 10px; }
+.evaluation-reference strong { color: #c4d88a; }
+.evaluation-reference-text { margin: 7px 0 0; color: #d7d9ce; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 11px; line-height: 1.55; }
+.evaluation-metrics { margin-top: 13px; padding-top: 12px; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 13px; border-top: 1px solid var(--line); color: var(--muted); font-size: 10px; }
+.evaluation-metrics > strong { color: var(--lime); font: 10px "DM Mono", monospace; }
+.evaluation-metrics p { flex-basis: 100%; margin: 0; color: #d7d9ce; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 11px; line-height: 1.55; }
+.evaluation-metrics audio { max-width: min(100%, 360px); height: 34px; }
+.evaluation-metrics a { color: var(--lime); font-size: 10px; }
+.evaluation-error { width: min(100%, 980px); margin: 12px auto; color: #ff9d87; font-size: 11px; }
+
 @media (max-width: 760px) {
   .chat-app { grid-template-columns: 230px minmax(0, 1fr); }
   .chat-app.sidebar-is-collapsed { grid-template-columns: minmax(0, 1fr); }
@@ -161,6 +197,7 @@ button:focus-visible, input:focus-visible, textarea:focus-visible { outline: 2px
   .chat-header { padding: 0 16px; }
   .message-column { padding-right: 18px; padding-left: 18px; }
   .composer-area { padding-right: 16px; padding-left: 16px; }
+  .evaluation-panel { padding-right: 18px; padding-left: 18px; }
 }
 @media (max-width: 560px) {
   .chat-app { grid-template-columns: minmax(0, 1fr); }
@@ -187,6 +224,10 @@ button:focus-visible, input:focus-visible, textarea:focus-visible { outline: 2px
   .composer-hint { font-size: 8px; }
   .suggestion-row { gap: 6px; }
   .suggestion-row span { font-size: 9px; }
+  .evaluation-header { align-items: flex-start; flex-direction: column; }
+  .evaluation-header h1 { font-size: 25px; }
+  .evaluation-toolbar { align-items: flex-start; flex-direction: column; }
+  .evaluation-actions { width: 100%; }
   .auth-brand { top: 20px; left: 20px; }
   .auth-card { padding: 31px 24px 25px; }
   .auth-foot { bottom: 15px; font-size: 7px; }

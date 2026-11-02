@@ -14,6 +14,7 @@ class Settings(BaseSettings):
     app_name: str = "Real-Time Voice AI Chatbot"
     environment: Literal["development", "test", "production"] = "development"
     debug: bool = False
+    enable_audio_evaluation: bool = False
     log_level: Literal["CRITICAL", "ERROR", "WARNING", "INFO", "DEBUG"] = "INFO"
     api_v1_prefix: str = "/api/v1"
     frontend_origins: list[str] = ["http://localhost:3000"]
@@ -81,6 +82,8 @@ class Settings(BaseSettings):
         if self.environment == "production":
             if self.debug:
                 raise ValueError("debug must be disabled in production")
+            if self.enable_audio_evaluation:
+                raise ValueError("audio evaluation endpoints must be disabled in production")
             if self.secret_key is None or len(self.secret_key.get_secret_value()) < 32:
                 raise ValueError("secret_key must contain at least 32 characters in production")
             if any(not origin.startswith("https://") for origin in self.frontend_origins):

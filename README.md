@@ -80,6 +80,10 @@ The voice controls include an architecture selector. Choose the cascade (Deepgra
 
 See [IMPLEMENTATION_PLAN.md](./IMPLEMENTATION_PLAN.md) for the next steps and [PROJECT_CONTEXT.md](./PROJECT_CONTEXT.md) for the current implementation state.
 
+For deployment incidents and recovery steps, see [DEPLOYMENT_TROUBLESHOOTING.md](./docs/DEPLOYMENT_TROUBLESHOOTING.md).
+
+For paired-WAV STT/TTS evaluation endpoints and WER/CER scoring, see [AUDIO_EVALUATION.md](./docs/AUDIO_EVALUATION.md).
+
 ## Configuration and secrets
 
 Never commit credentials. The root `.env` is ignored by Git. PostgreSQL and a random signing secret are required to register or log in. For local PostgreSQL, create a database such as `voice_bot` and set `VOICE_BOT_POSTGRES_DSN=postgresql://postgres:<your-local-password>@localhost:5432/voice_bot` (URL-encode special characters in the password). MongoDB is configured separately with `VOICE_BOT_MONGODB_URI` for conversation documents and checkpoints. Deepgram transcription is optional and requires `VOICE_BOT_DEEPGRAM_API_KEY`. Gemini text replies are optional and require `VOICE_BOT_GEMINI_API_KEY`. Azure speech output is optional and requires both `VOICE_BOT_AZURE_SPEECH_KEY` and `VOICE_BOT_AZURE_SPEECH_REGION`. Mem0 Platform memory is optional and requires `VOICE_BOT_MEM0_API_KEY`; conversation turns are sent to that service for memory extraction and retrieval. Without this key, chat behavior remains unchanged and no Mem0 calls are made.
