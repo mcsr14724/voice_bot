@@ -13,7 +13,7 @@ npm run dev
 
 Open `http://localhost:3000`. Start the backend separately from the repository root with `py -m uvicorn backend.main:app --reload`. The local client targets `http://127.0.0.1:8000`; no frontend environment file is needed.
 
-After signing in, choose **Speech evaluation** in the sidebar and select the dataset folder. WAV and TXT files are paired by their relative path and filename stem; unmatched files are ignored. Run STT or TTS to see transcripts and WER scores in the page, and play or download generated TTS audio. The folder picker accepts the multilingual dataset layout with language subfolders.
+After signing in, choose **Speech evaluation** in the sidebar and select the dataset folder. WAV and TXT files are paired by their relative path and filename stem; unmatched files are ignored. Run STT or TTS to see transcripts and WER scores in the page, and play or download generated TTS audio. The folder picker accepts the multilingual dataset layout with language subfolders; non-Latin transcript scripts can override a mismatched folder language.
 
 The UI sends one matched pair at a time to the authenticated evaluation API, so provider keys remain on the backend. Set `VOICE_BOT_ENABLE_AUDIO_EVALUATION=true` in the backend environment and restart/redeploy it; see [`docs/AUDIO_EVALUATION.md`](../docs/AUDIO_EVALUATION.md) for WAV requirements and limits.
 

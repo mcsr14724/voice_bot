@@ -4,7 +4,8 @@ import { ChangeEvent, useEffect, useRef, useState } from "react";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000/api/v1";
 const LANGUAGE_TAGS: Record<string, string> = {
-  bn: "bn-BD",
+  ar: "ar-EG",
+  bn: "bn-IN",
   de: "de-DE",
   en: "en-IN",
   es: "es-ES",
@@ -21,6 +22,8 @@ type AudioPair = {
   wav: File;
   transcript: File;
   referenceText: string;
+  folderLanguage: string | null;
+  languageFromTranscript: boolean;
 };
 
 type SttResult = {
@@ -53,6 +56,17 @@ function languageFromPath(path: string): string | null {
   return code ? LANGUAGE_TAGS[code.toLowerCase()] ?? null : null;
 }
 
+function languageFromTranscript(text: string): string | null {
+  const scripts: Array<[RegExp, string]> = [
+    [/[\u0600-\u06ff\u0750-\u077f\u08a0-\u08ff]/u, "ar-EG"],
+    [/[\u0980-\u09ff]/u, "bn-IN"],
+    [/[\u0900-\u097f]/u, "hi-IN"],
+    [/[\u0b80-\u0bff]/u, "ta-IN"],
+    [/[\u0c00-\u0c7f]/u, "te-IN"],
+  ];
+  return scripts.find(([pattern]) => pattern.test(text))?.[1] ?? null;
+}
+
 function pairFiles(files: File[]): { pairs: AudioPair[]; unmatched: number } {
   const audio = new Map<string, File>();
   const transcripts = new Map<string, File>();
@@ -78,6 +92,8 @@ function pairFiles(files: File[]): { pairs: AudioPair[]; unmatched: number } {
       key,
       name,
       language: languageFromPath(path),
+      folderLanguage: languageFromPath(path),
+      languageFromTranscript: false,
       wav,
       transcript,
       referenceText: "",
@@ -146,10 +162,16 @@ export default function AudioEvaluationPanel({ token }: { token: string }) {
     objectUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
     objectUrlsRef.current = [];
     const paired = pairFiles(selectedFiles);
-    setPairs(await Promise.all(paired.pairs.map(async (pair) => ({
-      ...pair,
-      referenceText: (await pair.transcript.text()).trim(),
-    }))));
+    setPairs(await Promise.all(paired.pairs.map(async (pair) => {
+      const referenceText = (await pair.transcript.text()).trim();
+      const scriptLanguage = languageFromTranscript(referenceText);
+      return {
+        ...pair,
+        referenceText,
+        language: scriptLanguage ?? pair.language,
+        languageFromTranscript: scriptLanguage !== null,
+      };
+    })));
     setUnmatchedCount(paired.unmatched);
     setResults({});
     setError(paired.pairs.length ? "" : "No matching WAV and TXT files were found in that folder.");
@@ -296,7 +318,13 @@ export default function AudioEvaluationPanel({ token }: { token: string }) {
               return (
                 <article className="evaluation-result" key={pair.key}>
                   <div className="evaluation-result-heading">
-                    <div><h2>{pair.name}</h2><span>{pair.language ?? "language not inferred"} · {pair.wav.name}</span></div>
+                    <div>
+                      <h2>{pair.name}</h2>
+                      <span>{pair.language ?? "language not inferred"} · {pair.wav.name}</span>
+                      {pair.languageFromTranscript && pair.folderLanguage && pair.language !== pair.folderLanguage && (
+                        <span className="evaluation-language-warning">Transcript script suggests {pair.language}; folder suggests {pair.folderLanguage}.</span>
+                      )}
+                    </div>
                     <span className="evaluation-size">{(pair.wav.size / 1024 / 1024).toFixed(2)} MB</span>
                   </div>
                   <p className="evaluation-reference"><strong>Reference · {pair.transcript.name}</strong></p>

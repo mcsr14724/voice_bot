@@ -5,6 +5,7 @@ import json
 from typing import Any, Awaitable, Callable, Sequence
 from urllib.parse import urlencode
 
+import httpx
 from websockets.asyncio.client import connect
 from websockets.exceptions import InvalidStatus
 
@@ -12,6 +13,14 @@ from backend.core.voice.audio import AudioFrame, AudioStreamEnd
 
 TranscriptEmitter = Callable[[dict[str, Any]], Awaitable[None]]
 AudioQueue = asyncio.Queue[AudioFrame | AudioStreamEnd | None]
+
+
+class DeepgramTranscriptionError(Exception):
+    """Provider request failure with a safe, user-facing category."""
+
+    def __init__(self, code: str) -> None:
+        super().__init__(code)
+        self.code = code
 
 
 class DeepgramTranscriber:
@@ -29,6 +38,50 @@ class DeepgramTranscriber:
         self._model = model
         self._language = language
         self._language_hints = tuple(hint.strip() for hint in language_hints if hint.strip())
+
+    async def transcribe_prerecorded(self, audio_bytes: bytes) -> str:
+        """Transcribe a complete audio file through Deepgram's prerecorded endpoint."""
+        try:
+            async with httpx.AsyncClient(timeout=45) as client:
+                response = await client.post(
+                    "https://api.deepgram.com/v1/listen",
+                    params={
+                        "model": self._model,
+                        "language": self._language,
+                        "smart_format": "true",
+                    },
+                    headers={
+                        "Authorization": f"Token {self._api_key}",
+                        "Content-Type": "audio/wav",
+                    },
+                    content=audio_bytes,
+                )
+        except httpx.TimeoutException as error:
+            raise DeepgramTranscriptionError("connection_timeout") from error
+        except httpx.RequestError as error:
+            raise DeepgramTranscriptionError("connection_failed") from error
+
+        if response.is_error:
+            status_code = response.status_code
+            if status_code in {401, 403}:
+                code = "credentials_rejected"
+            elif status_code == 429:
+                code = "rate_limited"
+            elif status_code < 500:
+                code = "request_rejected"
+            else:
+                code = "provider_unavailable"
+            raise DeepgramTranscriptionError(code)
+
+        try:
+            payload = response.json()
+            alternatives = payload["results"]["channels"][0]["alternatives"]
+            transcript = alternatives[0]["transcript"]
+        except (ValueError, KeyError, IndexError, TypeError) as error:
+            raise DeepgramTranscriptionError("invalid_response") from error
+        if not isinstance(transcript, str):
+            raise DeepgramTranscriptionError("invalid_response")
+        return transcript.strip()
 
     @staticmethod
     def connection_error_code(error: Exception) -> str:

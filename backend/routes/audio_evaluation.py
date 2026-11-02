@@ -11,7 +11,6 @@ from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import Response
-from websockets.exceptions import WebSocketException
 
 from backend.core.config import Settings, get_settings
 from backend.core.exceptions import ApplicationError
@@ -19,14 +18,11 @@ from backend.core.stt.evaluation import (
     MAX_AUDIO_FILE_BYTES,
     MAX_TOTAL_UPLOAD_BYTES,
     MAX_TRANSCRIPT_FILE_BYTES,
-    audio_frames,
     decode_wav_to_16khz_mono,
-    end_audio_queue,
-    new_audio_queue,
     score_transcript,
     transcript_tokens,
 )
-from backend.core.stt.transcription import DeepgramTranscriber
+from backend.core.stt.transcription import DeepgramTranscriptionError, DeepgramTranscriber
 from backend.core.tts.protocol import SpeechSynthesizer
 from backend.models.auth import UserResponse
 from backend.routes.auth import get_current_user
@@ -34,23 +30,26 @@ from backend.routes.auth import get_current_user
 router = APIRouter(prefix="/audio-evaluation", tags=["audio evaluation"])
 MAX_SYNTHESIZED_AUDIO_BYTES = 20 * 1024 * 1024
 MAX_TEXT_CHARACTERS = 4_000
-DEEPGRAM_ERROR_CODES = {
-    "provider_error",
-    "credentials_rejected",
-    "rate_limited",
-    "request_rejected",
-    "provider_unavailable",
-    "connection_timeout",
-    "connection_failed",
-}
 DEEPGRAM_LANGUAGE_BY_LOCALE = {
+    "ar": "ar",
+    "ar-eg": "ar",
+    "ar-sa": "ar",
+    "bn": "bn",
+    "bn-bd": "bn",
     "bn-in": "bn",
+    "de": "de",
     "de-de": "de",
+    "en": "en",
     "en-in": "en-IN",
+    "es": "es",
     "es-es": "es",
+    "fr": "fr",
     "fr-fr": "fr",
+    "hi": "hi",
     "hi-in": "hi",
+    "ta": "ta",
     "ta-in": "ta",
+    "te": "te",
     "te-in": "te",
 }
 
@@ -166,57 +165,29 @@ async def _transcribe_wav(
     except ValueError as error:
         raise HTTPException(status_code=422, detail=str(error)) from error
 
-    events: list[dict[str, Any]] = []
-
-    async def collect(event: dict[str, Any]) -> None:
-        events.append(event)
-
-    queue = new_audio_queue()
-    end_audio_queue(queue, audio_frames(pcm_bytes))
+    normalized_wav = io.BytesIO()
+    with wave.open(normalized_wav, "wb") as wav_file:
+        wav_file.setnchannels(1)
+        wav_file.setsampwidth(2)
+        wav_file.setframerate(16_000)
+        wav_file.writeframes(pcm_bytes)
     try:
-        await transcriber.consume(queue, collect)
-    except (TimeoutError, OSError, WebSocketException) as error:
-        code = transcriber.connection_error_code(error)
+        return await transcriber.transcribe_prerecorded(normalized_wav.getvalue())
+    except DeepgramTranscriptionError as error:
         raise ApplicationError(
-            f"Speech provider connection failed: {code}",
+            f"Speech provider request failed: {error.code}",
             status_code=502,
-            code=code,
+            code=error.code,
         ) from None
 
-    provider_errors = [
-        event["code"]
-        for event in events
-        if event.get("type") == "transcription.error"
-        and event.get("code") in DEEPGRAM_ERROR_CODES
-    ]
-    if provider_errors:
-        raise ApplicationError(
-            f"Speech provider error: {provider_errors[-1]}",
-            status_code=502,
-            code=provider_errors[-1],
-        )
-    final_text = [
-        str(event["text"])
-        for event in events
-        if event.get("type") == "transcript"
-        and event.get("is_final")
-        and isinstance(event.get("text"), str)
-        and event["text"].strip()
-    ]
-    if final_text:
-        return " ".join(final_text)
-    interim_text = [
-        str(event["text"])
-        for event in events
-        if event.get("type") == "transcript"
-        and isinstance(event.get("text"), str)
-        and event["text"].strip()
-    ]
-    return interim_text[-1] if interim_text else ""
 
-
-def _score_result(reference: str, hypothesis: str) -> dict[str, Any]:
-    score = score_transcript(reference, hypothesis)
+def _score_result(
+    reference: str,
+    hypothesis: str,
+    *,
+    language: str | None = None,
+) -> dict[str, Any]:
+    score = score_transcript(reference, hypothesis, language=language)
     return {
         "reference_words": score.reference_words,
         "edit_count": score.edits,
@@ -307,16 +278,18 @@ async def evaluate_stt(
     transcriber = _get_transcriber(settings, language=language)
     stem, audio_bytes, reference = await _load_pair(audio_file, transcript_file)
     hypothesis = await _transcribe_wav(audio_bytes, transcriber=transcriber)
-    score = _score_result(reference, hypothesis)
+    recognition_language = (
+        _deepgram_language_for_locale(language) if language else settings.deepgram_language
+    )
+    score = _score_result(reference, hypothesis, language=recognition_language)
     corpus = _aggregate_scores([(score["edit_count"], score["reference_words"])])
     return {
         "metric": "word_error_rate",
-        "recognition_language": (
-            _deepgram_language_for_locale(language) if language else settings.deepgram_language
-        ),
+        "recognition_language": recognition_language,
         "corpus": corpus,
         "sample": {
             "sample": stem,
+            "recognition_language": recognition_language,
             "reference_transcript": reference,
             "recognized_transcript": hypothesis,
             **score,
@@ -348,10 +321,21 @@ async def evaluate_tts(
         reference_transcript = await _transcribe_wav(reference_wav, transcriber=transcriber)
         generated_wav = await _synthesize_wav(synthesizer, text, language)
         generated_transcript = await _transcribe_wav(generated_wav, transcriber=transcriber)
-        reference_score = _score_result(text, reference_transcript)
-        generated_score = _score_result(text, generated_transcript)
+        recognition_language = (
+            _deepgram_language_for_locale(language) if language else settings.deepgram_language
+        )
+        reference_score = _score_result(
+            text, reference_transcript, language=recognition_language
+        )
+        generated_score = _score_result(
+            text, generated_transcript, language=recognition_language
+        )
         try:
-            generated_vs_reference = _score_result(reference_transcript, generated_transcript)
+            generated_vs_reference = _score_result(
+                reference_transcript,
+                generated_transcript,
+                language=recognition_language,
+            )
         except ValueError:
             generated_vs_reference = None
 
@@ -359,6 +343,7 @@ async def evaluate_tts(
         output_zip.writestr(wav_filename, generated_wav)
         summary = {
             "metric": "word_error_rate",
+            "recognition_language": recognition_language,
             "reference_audio": reference_score,
             "generated_audio": generated_score,
             "sample": {

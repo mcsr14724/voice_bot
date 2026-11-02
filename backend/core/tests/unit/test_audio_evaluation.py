@@ -43,6 +43,29 @@ class AudioEvaluationTests(unittest.TestCase):
         self.assertEqual(incorrect.word_error_rate, 0.75)
         self.assertGreater(incorrect.character_error_rate, 0)
 
+    def test_scoring_normalizes_spoken_digit_sequences_for_language(self) -> None:
+        for language, words, digits in (
+            ("en-IN", "four eight two nine one", "48291"),
+            ("de-DE", "vier acht zwei neun eins", "48291"),
+            ("hi-IN", "चार आठ दो नौ एक", "48291"),
+            ("ta-IN", "நான்கு எட்டு இரண்டு ஒன்பது ஒன்று", "48291"),
+            ("te-IN", "నాలుగు ఎనిమిది రెండు తొమ్మిది ఒకటి", "48291"),
+        ):
+            with self.subTest(language=language):
+                result = score_transcript(words, digits, language=language)
+                self.assertEqual(result.word_error_rate, 0)
+                self.assertEqual(result.character_error_rate, 0)
+
+    def test_unicode_tokenization_preserves_combining_marks(self) -> None:
+        result = score_transcript(
+            "कृपया बैठक की जानकारी भेजें",
+            "कृपया बैठक की जानकारी भेजें",
+            language="hi-IN",
+        )
+
+        self.assertEqual(result.reference_words, 5)
+        self.assertEqual(result.word_error_rate, 0)
+
     def test_audio_evaluation_is_disabled_by_default_and_can_be_enabled_in_production(self) -> None:
         with self.assertRaises(HTTPException) as raised:
             _check_evaluation_enabled(Settings(_env_file=None))

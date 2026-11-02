@@ -84,6 +84,7 @@ class AudioEvaluationRouteTests(unittest.TestCase):
         result = response.json()
         self.assertEqual(result["corpus"]["word_error_rate"], 0)
         self.assertEqual(result["recognition_language"], "bn")
+        self.assertEqual(result["sample"]["recognition_language"], "bn")
         self.assertEqual(result["sample"]["recognized_transcript"], "Hello world")
 
     def test_transcriber_uses_exact_dataset_language_without_other_language_hints(self) -> None:
@@ -97,7 +98,7 @@ class AudioEvaluationRouteTests(unittest.TestCase):
             deepgram_language_hints=["en-IN", "te-IN"],
         )
         with patch("backend.routes.audio_evaluation.DeepgramTranscriber") as transcriber:
-            _get_transcriber(settings, language="bn-IN")
+            _get_transcriber(settings, language="bn-BD")
 
         transcriber.assert_called_once_with(
             "test-key",

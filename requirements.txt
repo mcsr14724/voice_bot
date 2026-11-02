@@ -1,6 +1,7 @@
 # Backend runtime dependencies validated together on Python 3.13.
 fastapi[standard]==0.161.1
 email-validator==2.3.0
+httpx==0.28.1
 azure-cognitiveservices-speech==1.53.0
 google-genai==2.32.0
 langgraph==1.2.16

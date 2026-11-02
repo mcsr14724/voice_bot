@@ -180,6 +180,7 @@ button:focus-visible, input:focus-visible, textarea:focus-visible { outline: 2px
 .evaluation-result-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
 .evaluation-result-heading h2 { margin: 0 0 5px; font-size: 13px; font-weight: 600; }
 .evaluation-result-heading span, .evaluation-size { color: var(--subtle); font-size: 10px; }
+.evaluation-result-heading .evaluation-language-warning { display: block; margin-top: 5px; color: #e7bb72; }
 .evaluation-reference { margin: 14px 0 0; display: flex; gap: 8px; color: var(--muted); font-size: 10px; }
 .evaluation-reference strong { color: #c4d88a; }
 .evaluation-reference-text { margin: 7px 0 0; color: #d7d9ce; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 11px; line-height: 1.55; }

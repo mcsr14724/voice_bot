@@ -8,10 +8,76 @@ from unittest.mock import patch
 from websockets.exceptions import InvalidStatus
 
 from backend.core.voice.audio import AudioFrame, AudioStreamEnd
-from backend.core.stt.transcription import DeepgramTranscriber
+from backend.core.stt.transcription import DeepgramTranscriptionError, DeepgramTranscriber
 
 
 class DeepgramTranscriberTests(unittest.IsolatedAsyncioTestCase):
+    async def test_prerecorded_transcription_uses_batch_endpoint_and_language(self) -> None:
+        class Response:
+            is_error = False
+
+            def json(self) -> dict:
+                return {
+                    "results": {
+                        "channels": [
+                            {"alternatives": [{"transcript": "  Guten Morgen.  "}]}
+                        ]
+                    }
+                }
+
+        class Client:
+            def __init__(self) -> None:
+                self.request = None
+
+            async def __aenter__(self):
+                return self
+
+            async def __aexit__(self, *_args):
+                return False
+
+            async def post(self, *args, **kwargs):
+                self.request = (args, kwargs)
+                return Response()
+
+        client = Client()
+        with patch("backend.core.stt.transcription.httpx.AsyncClient", return_value=client):
+            transcript = await DeepgramTranscriber(
+                "test-key", language="de"
+            ).transcribe_prerecorded(b"normalized wav")
+
+        self.assertEqual(transcript, "Guten Morgen.")
+        self.assertEqual(client.request[0], ("https://api.deepgram.com/v1/listen",))
+        self.assertEqual(client.request[1]["params"], {
+            "model": "nova-3",
+            "language": "de",
+            "smart_format": "true",
+        })
+        self.assertEqual(client.request[1]["content"], b"normalized wav")
+
+    async def test_prerecorded_transcription_classifies_provider_rejections(self) -> None:
+        class Response:
+            is_error = True
+            status_code = 429
+
+        class Client:
+            async def __aenter__(self):
+                return self
+
+            async def __aexit__(self, *_args):
+                return False
+
+            async def post(self, *_args, **_kwargs):
+                return Response()
+
+        with patch(
+            "backend.core.stt.transcription.httpx.AsyncClient",
+            return_value=Client(),
+        ):
+            with self.assertRaises(DeepgramTranscriptionError) as raised:
+                await DeepgramTranscriber("test-key").transcribe_prerecorded(b"wav")
+
+        self.assertEqual(raised.exception.code, "rate_limited")
+
     def test_classifies_connection_failures_without_provider_details(self) -> None:
         for status_code, expected in (
             (401, "credentials_rejected"),

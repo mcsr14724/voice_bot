@@ -2,7 +2,6 @@
 
 import asyncio
 import io
-import re
 import struct
 import unicodedata
 import wave
@@ -18,6 +17,46 @@ MAX_AUDIO_DURATION_SECONDS = 90
 MAX_AUDIO_FILE_BYTES = 20 * 1024 * 1024
 MAX_TRANSCRIPT_FILE_BYTES = 8 * 1024
 MAX_TOTAL_UPLOAD_BYTES = 50 * 1024 * 1024
+
+_DIGIT_WORDS = {
+    "ar": {
+        "صفر": "0", "واحد": "1", "واحدة": "1", "اثنان": "2", "اثنين": "2",
+        "ثلاثة": "3", "أربعة": "4", "اربعة": "4", "خمسة": "5", "ستة": "6",
+        "سبعة": "7", "ثمانية": "8", "تسعة": "9",
+    },
+    "bn": {
+        "শূন্য": "0", "এক": "1", "দুই": "2", "তিন": "3", "চার": "4",
+        "পাঁচ": "5", "ছয়": "6", "ছয়": "6", "সাত": "7", "আট": "8", "নয়": "9", "নয়": "9",
+    },
+    "de": {
+        "null": "0", "eins": "1", "zwei": "2", "drei": "3", "vier": "4",
+        "fünf": "5", "fuenf": "5", "sechs": "6", "sieben": "7", "acht": "8", "neun": "9",
+    },
+    "en": {
+        "zero": "0", "oh": "0", "one": "1", "two": "2", "three": "3", "four": "4",
+        "five": "5", "six": "6", "seven": "7", "eight": "8", "nine": "9",
+    },
+    "es": {
+        "cero": "0", "uno": "1", "una": "1", "dos": "2", "tres": "3", "cuatro": "4",
+        "cinco": "5", "seis": "6", "siete": "7", "ocho": "8", "nueve": "9",
+    },
+    "fr": {
+        "zéro": "0", "zero": "0", "un": "1", "une": "1", "deux": "2", "trois": "3",
+        "quatre": "4", "cinq": "5", "six": "6", "sept": "7", "huit": "8", "neuf": "9",
+    },
+    "hi": {
+        "शून्य": "0", "एक": "1", "दो": "2", "तीन": "3", "चार": "4",
+        "पाँच": "5", "पांच": "5", "छह": "6", "छः": "6", "सात": "7", "आठ": "8", "नौ": "9",
+    },
+    "ta": {
+        "பூஜ்ஜியம்": "0", "சுழியம்": "0", "ஒன்று": "1", "இரண்டு": "2", "மூன்று": "3",
+        "நான்கு": "4", "ஐந்து": "5", "ஆறு": "6", "ஏழு": "7", "எட்டு": "8", "ஒன்பது": "9",
+    },
+    "te": {
+        "సున్నా": "0", "ఒకటి": "1", "రెండు": "2", "మూడు": "3", "నాలుగు": "4",
+        "ఐదు": "5", "ఆరు": "6", "ఏడు": "7", "ఎనిమిది": "8", "తొమ్మిది": "9",
+    },
+}
 
 
 @dataclass(frozen=True, slots=True)
@@ -109,10 +148,15 @@ def audio_frames(pcm_s16le: bytes) -> list[AudioFrame]:
     return frames
 
 
-def score_transcript(reference: str, hypothesis: str) -> TranscriptScore:
-    """Compute standard word error rate with Unicode-aware tokenization."""
-    reference_words = _tokens(reference)
-    hypothesis_words = _tokens(hypothesis)
+def score_transcript(
+    reference: str,
+    hypothesis: str,
+    *,
+    language: str | None = None,
+) -> TranscriptScore:
+    """Compute WER/CER with Unicode tokenization and spoken-digit normalization."""
+    reference_words = _tokens(reference, language=language)
+    hypothesis_words = _tokens(hypothesis, language=language)
     if not reference_words:
         raise ValueError("Reference transcript must contain at least one word")
 
@@ -155,9 +199,32 @@ def transcript_tokens(text: str) -> list[str]:
     return _tokens(text)
 
 
-def _tokens(text: str) -> list[str]:
+def _tokens(text: str, *, language: str | None = None) -> list[str]:
     normalized = unicodedata.normalize("NFC", text).casefold()
-    return re.findall(r"\w+", normalized, flags=re.UNICODE)
+    raw_tokens: list[str] = []
+    current: list[str] = []
+    for character in normalized:
+        category = unicodedata.category(character)
+        if category[0] in {"L", "N"} or category[0] == "M" and current or character == "_":
+            current.append(character)
+        elif current:
+            raw_tokens.append("".join(current))
+            current = []
+    if current:
+        raw_tokens.append("".join(current))
+
+    language_code = language.replace("_", "-").split("-", maxsplit=1)[0].casefold() if language else ""
+    digit_words = _DIGIT_WORDS.get(language_code, {})
+    tokens: list[str] = []
+    for token in raw_tokens:
+        digit_word = digit_words.get(token)
+        if digit_word is not None:
+            tokens.append(digit_word)
+        elif token.isdecimal():
+            tokens.extend(str(unicodedata.digit(character)) for character in token)
+        else:
+            tokens.append(token)
+    return tokens
 
 
 def _edit_distance(reference: list[str], hypothesis: list[str]) -> int:

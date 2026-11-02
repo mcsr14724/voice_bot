@@ -6,6 +6,18 @@ from typing import Any
 
 import azure.cognitiveservices.speech as speechsdk
 
+AZURE_VOICE_BY_LANGUAGE = {
+    "ar": "ar-EG-SalmaNeural",
+    "bn": "bn-IN-TanishaaNeural",
+    "de": "de-DE-KatjaNeural",
+    "en": "en-IN-NeerjaNeural",
+    "es": "es-ES-ElviraNeural",
+    "fr": "fr-FR-DeniseNeural",
+    "hi": "hi-IN-SwaraNeural",
+    "ta": "ta-IN-PallaviNeural",
+    "te": "te-IN-ShrutiNeural",
+}
+
 
 class AzureSpeechSynthesizer:
     """Synthesize text and forward SDK audio callbacks as async PCM chunks."""
@@ -93,12 +105,8 @@ class AzureSpeechSynthesizer:
 
 
 def _voice_for_language(language: str | None, fallback: str) -> str:
-    """Choose a regional Azure neural voice when ASR provides a language tag."""
+    """Choose a supported Azure neural voice for the requested language."""
     if not language:
         return fallback
-    normalized = language.replace("_", "-").lower()
-    if normalized in {"en-in", "en"}:
-        return "en-IN-NeerjaNeural"
-    if normalized in {"te", "te-in"}:
-        return "te-IN-ShrutiNeural"
-    return fallback
+    language_code = language.replace("_", "-").split("-", maxsplit=1)[0].lower()
+    return AZURE_VOICE_BY_LANGUAGE.get(language_code, fallback)
