@@ -8,12 +8,12 @@ import zipfile
 from datetime import datetime, timezone
 from unittest.mock import AsyncMock, patch
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.testclient import TestClient
 
 from backend.core.config import Settings
 from backend.models.auth import UserResponse
-from backend.routes.audio_evaluation import router
+from backend.routes.audio_evaluation import _get_transcriber, router
 from backend.routes.auth import get_current_user
 
 
@@ -77,12 +77,47 @@ class AudioEvaluationRouteTests(unittest.TestCase):
                     ("audio_file", ("sample.wav", b"wav", "audio/wav")),
                     ("transcript_file", ("sample.txt", b"Hello, world!", "text/plain")),
                 ],
+                data={"language": "bn-IN"},
             )
 
         self.assertEqual(response.status_code, 200)
         result = response.json()
         self.assertEqual(result["corpus"]["word_error_rate"], 0)
+        self.assertEqual(result["recognition_language"], "bn")
         self.assertEqual(result["sample"]["recognized_transcript"], "Hello world")
+
+    def test_transcriber_uses_exact_dataset_language_without_other_language_hints(self) -> None:
+        settings = Settings(
+            _env_file=None,
+            environment="development",
+            enable_audio_evaluation=True,
+            frontend_origins=["http://localhost:3000"],
+            deepgram_api_key="test-key",
+            deepgram_language="multi",
+            deepgram_language_hints=["en-IN", "te-IN"],
+        )
+        with patch("backend.routes.audio_evaluation.DeepgramTranscriber") as transcriber:
+            _get_transcriber(settings, language="bn-IN")
+
+        transcriber.assert_called_once_with(
+            "test-key",
+            language="bn",
+            language_hints=[],
+        )
+
+    def test_transcriber_rejects_unknown_evaluation_language(self) -> None:
+        settings = Settings(
+            _env_file=None,
+            environment="development",
+            enable_audio_evaluation=True,
+            frontend_origins=["http://localhost:3000"],
+            deepgram_api_key="test-key",
+        )
+
+        with self.assertRaises(HTTPException) as raised:
+            _get_transcriber(settings, language="xx-XX")
+
+        self.assertEqual(raised.exception.status_code, 422)
 
     def test_stt_is_available_in_production_when_explicitly_enabled(self) -> None:
         production_settings = Settings(

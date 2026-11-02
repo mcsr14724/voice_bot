@@ -6,7 +6,7 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000/api/v1
 const LANGUAGE_TAGS: Record<string, string> = {
   bn: "bn-BD",
   de: "de-DE",
-  en: "en-US",
+  en: "en-IN",
   es: "es-ES",
   fr: "fr-FR",
   hi: "hi-IN",
@@ -25,6 +25,7 @@ type AudioPair = {
 
 type SttResult = {
   recognized_transcript: string;
+  recognition_language: string;
   word_error_rate: number;
   word_accuracy_percent: number;
   character_error_rate: number;
@@ -176,7 +177,7 @@ export default function AudioEvaluationPanel({ token }: { token: string }) {
         const form = new FormData();
         form.append(mode === "stt" ? "audio_file" : "reference_audio_file", pair.wav);
         form.append("transcript_file", pair.transcript);
-        if (mode === "tts" && pair.language) form.append("language", pair.language);
+        if (pair.language) form.append("language", pair.language);
         const response = await fetch(`${API_URL}/audio-evaluation/${mode}`, {
           method: "POST",
           headers: { Authorization: `Bearer ${token}` },
@@ -303,6 +304,7 @@ export default function AudioEvaluationPanel({ token }: { token: string }) {
                   {result?.stt && (
                     <div className="evaluation-metrics">
                       <strong>STT</strong>
+                      <span>Language {result.stt.recognition_language}</span>
                       <span>WER {(result.stt.word_error_rate * 100).toFixed(1)}%</span>
                       <span>Word accuracy {result.stt.word_accuracy_percent.toFixed(1)}%</span>
                       <span>CER {(result.stt.character_error_rate * 100).toFixed(1)}%</span>

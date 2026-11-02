@@ -43,6 +43,16 @@ DEEPGRAM_ERROR_CODES = {
     "connection_timeout",
     "connection_failed",
 }
+DEEPGRAM_LANGUAGE_BY_LOCALE = {
+    "bn-in": "bn",
+    "de-de": "de",
+    "en-in": "en-IN",
+    "es-es": "es",
+    "fr-fr": "fr",
+    "hi-in": "hi",
+    "ta-in": "ta",
+    "te-in": "te",
+}
 
 
 def _check_evaluation_enabled(settings: Settings) -> None:
@@ -59,15 +69,34 @@ def _get_speech_synthesizer(request: Request) -> SpeechSynthesizer:
     return synthesizer
 
 
-def _get_transcriber(settings: Settings) -> DeepgramTranscriber:
+def _deepgram_language_for_locale(language: str) -> str:
+    deepgram_language = DEEPGRAM_LANGUAGE_BY_LOCALE.get(language.casefold())
+    if deepgram_language is None:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Unsupported evaluation language: {language}",
+        )
+    return deepgram_language
+
+
+def _get_transcriber(
+    settings: Settings,
+    *,
+    language: str | None = None,
+) -> DeepgramTranscriber:
     if settings.deepgram_api_key is None:
         raise ApplicationError(
             "Speech-to-text is not configured", status_code=503, code="stt_unavailable"
         )
+    deepgram_language = settings.deepgram_language
+    language_hints = settings.deepgram_language_hints
+    if language is not None:
+        deepgram_language = _deepgram_language_for_locale(language)
+        language_hints = []
     return DeepgramTranscriber(
         settings.deepgram_api_key.get_secret_value(),
-        language=settings.deepgram_language,
-        language_hints=settings.deepgram_language_hints,
+        language=deepgram_language,
+        language_hints=language_hints,
     )
 
 
@@ -271,16 +300,20 @@ async def evaluate_stt(
     transcript_file: Annotated[
         UploadFile, File(description="One UTF-8 TXT reference with the matching filename stem")
     ],
+    language: Annotated[str | None, Form(max_length=32)] = None,
 ) -> dict[str, Any]:
     del current_user
     _check_evaluation_enabled(settings)
-    transcriber = _get_transcriber(settings)
+    transcriber = _get_transcriber(settings, language=language)
     stem, audio_bytes, reference = await _load_pair(audio_file, transcript_file)
     hypothesis = await _transcribe_wav(audio_bytes, transcriber=transcriber)
     score = _score_result(reference, hypothesis)
     corpus = _aggregate_scores([(score["edit_count"], score["reference_words"])])
     return {
         "metric": "word_error_rate",
+        "recognition_language": (
+            _deepgram_language_for_locale(language) if language else settings.deepgram_language
+        ),
         "corpus": corpus,
         "sample": {
             "sample": stem,
@@ -306,7 +339,7 @@ async def evaluate_tts(
 ) -> Response:
     del current_user
     _check_evaluation_enabled(settings)
-    transcriber = _get_transcriber(settings)
+    transcriber = _get_transcriber(settings, language=language)
     synthesizer = _get_speech_synthesizer(request)
     stem, reference_wav, text = await _load_pair(reference_audio_file, transcript_file)
 
